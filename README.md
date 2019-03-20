@@ -1,0 +1,2 @@
+# adbl
+abstract SQL interface
