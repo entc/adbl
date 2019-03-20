@@ -1,2 +1,2 @@
 # adbl
-abstract SQL interface
+abstract database interface
