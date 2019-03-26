@@ -266,6 +266,8 @@ int adbl_trx_commit (AdblTrx* p_self, CapeErr err)
   
   if (self->in_trx)
   {
+    printf ("*** ADBL: COMMIT TRANSACTION ***\n");
+
     res = self->pvd->pvd_commit (self->session, err);
   }
     

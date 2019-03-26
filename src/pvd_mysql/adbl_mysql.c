@@ -167,7 +167,7 @@ CapeUdc __STDCALL adbl_pvd_get (AdblPvdSession self, const char* table, CapeUdc*
     CapeUdc results = cape_udc_new (CAPE_UDC_LIST, NULL);
 
     {
-      // fetch all rows and merge them intoone result set  
+      // fetch all rows and merge them into one result set  
       while (adbl_pvd_cursor_next (cursor))
       {
         // this will transfer the ownership
