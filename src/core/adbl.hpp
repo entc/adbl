@@ -68,7 +68,7 @@ namespace adbl {
     
     number_t trx_insert (const char* table, CapeUdc* p_values)
     {
-      number_t inserted_id = NULL;
+      number_t inserted_id = 0;
       cape::ErrHolder errh;
       
       // execute database statement

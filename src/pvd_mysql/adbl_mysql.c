@@ -447,11 +447,19 @@ CapeUdc __STDCALL adbl_pvd_cursor_get (AdblPvdCursor self)
       {
         CapeUdc item = cape_udc_new (cape_udc_type (cursor->item), column_name);
         
-        adbl_bindvars_get (self->binds, i, item);
+        if (adbl_bindvars_get (self->binds, i, item))
+        {
+          cape_udc_print (item);
 
-        //cape_udc_print (item);
-        
-        cape_udc_add (result_row, &item);
+          cape_udc_add (result_row, &item);
+        }
+        else
+        {
+          printf ("IS NULL\n");
+          
+          cape_udc_del (&item);
+        }
+
         
         i++;
       }

@@ -53,7 +53,8 @@ void adbl_bindvars_del (AdblBindVars* p_self)
       
       if (bind->buffer && bind->pack_length)
       {
-        CAPE_FREE(bind->buffer);
+        CAPE_FREE (bind->buffer);
+        CAPE_FREE (bind->is_null);
       }
     }
   }
@@ -143,7 +144,7 @@ void adbl_bind_add (MYSQL_BIND* bind, CapeUdc item)
       memset (bind->buffer, 0, 1024);
       
       bind->buffer_length = 1024;
-      bind->is_null = 0;
+      bind->is_null = CAPE_ALLOC(sizeof(my_bool));
       bind->length = 0;
       bind->error = 0;
       
@@ -159,7 +160,7 @@ void adbl_bind_add (MYSQL_BIND* bind, CapeUdc item)
       memset (bind->buffer, 0, 8);
       
       bind->buffer_length = 0;
-      bind->is_null = 0;
+      bind->is_null = CAPE_ALLOC(sizeof(my_bool));
       bind->length = 0;
       bind->error = 0; 
       bind->is_unsigned = 0;
@@ -173,7 +174,7 @@ void adbl_bind_add (MYSQL_BIND* bind, CapeUdc item)
       bind->buffer_type = MYSQL_TYPE_DOUBLE;
       bind->buffer = CAPE_ALLOC(8);
       bind->buffer_length = 0;
-      bind->is_null = 0;
+      bind->is_null = CAPE_ALLOC(sizeof(my_bool));
       bind->length = 0;
       bind->error = 0; 
       bind->is_unsigned = 0;
@@ -187,7 +188,7 @@ void adbl_bind_add (MYSQL_BIND* bind, CapeUdc item)
       bind->buffer_type = MYSQL_TYPE_LONG;    // use long because original is int
       bind->buffer = CAPE_ALLOC(8);
       bind->buffer_length = 0;
-      bind->is_null = 0;
+      bind->is_null = CAPE_ALLOC(sizeof(my_bool));
       bind->length = 0;
       bind->error = 0; 
       bind->is_unsigned = 0;
@@ -201,8 +202,15 @@ void adbl_bind_add (MYSQL_BIND* bind, CapeUdc item)
 
 //------------------------------------------------------------------------------------------------------
 
-void adbl_bind_get (MYSQL_BIND* bind, CapeUdc item)
+int adbl_bind_get (MYSQL_BIND* bind, CapeUdc item)
 {
+  my_bool isnull = *(bind->is_null);
+  
+  if (isnull)
+  {
+    return FALSE; 
+  }
+  
   switch (cape_udc_type (item))
   {
     case CAPE_UDC_STRING:
@@ -233,7 +241,9 @@ void adbl_bind_get (MYSQL_BIND* bind, CapeUdc item)
       
       break;
     }
-  }  
+  } 
+  
+  return TRUE;
 }
 
 //------------------------------------------------------------------------------------------------------
@@ -270,14 +280,18 @@ int adbl_bindvars_add (AdblBindVars self, CapeUdc item, CapeErr err)
 
 //------------------------------------------------------------------------------------------------------
 
-void adbl_bindvars_get (AdblBindVars self, number_t index, CapeUdc item)
+int adbl_bindvars_get (AdblBindVars self, number_t index, CapeUdc item)
 {
+  int res = FALSE;
+  
   if (index < self->size)
   {
     MYSQL_BIND* bind = &(self->binds[index]);
     
-    adbl_bind_get (bind, item);
+    res = adbl_bind_get (bind, item);
   }
+  
+  return res;
 }
 
 //------------------------------------------------------------------------------------------------------
