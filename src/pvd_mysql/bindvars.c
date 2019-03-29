@@ -53,8 +53,15 @@ void adbl_bindvars_del (AdblBindVars* p_self)
       
       if (bind->buffer && bind->pack_length)
       {
-        CAPE_FREE (bind->buffer);
-        CAPE_FREE (bind->is_null);
+        if (bind->buffer)
+        {
+          CAPE_FREE (bind->buffer);
+        }
+        
+        if (bind->is_null)
+        {
+          CAPE_FREE (bind->is_null);
+        }        
       }
     }
   }
@@ -127,6 +134,18 @@ void adbl_bind_set (MYSQL_BIND* bind, CapeUdc item)
       
       break;
     }
+    case CAPE_UDC_NULL:
+    {
+      bind->buffer_type = MYSQL_TYPE_NULL;
+      bind->buffer = NULL;
+      bind->buffer_length = 0;
+      bind->is_null = 0;
+      bind->length = 0;
+      bind->error = 0; 
+      bind->is_unsigned = 0;
+
+      break;
+    }
   }
 }
 
@@ -189,6 +208,20 @@ void adbl_bind_add (MYSQL_BIND* bind, CapeUdc item)
       bind->buffer = CAPE_ALLOC(8);
       bind->buffer_length = 0;
       bind->is_null = CAPE_ALLOC(sizeof(my_bool));
+      bind->length = 0;
+      bind->error = 0; 
+      bind->is_unsigned = 0;
+      
+      bind->pack_length = 1;
+      
+      break;
+    }
+    case CAPE_UDC_NULL:
+    {
+      bind->buffer_type = MYSQL_TYPE_NULL;
+      bind->buffer = NULL;
+      bind->buffer_length = 0;
+      bind->is_null = NULL;
       bind->length = 0;
       bind->error = 0; 
       bind->is_unsigned = 0;

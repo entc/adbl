@@ -66,6 +66,18 @@ namespace adbl {
       }      
     }
     
+    void trx_delete (const char* table, CapeUdc* p_params)
+    {
+      int res;
+      cape::ErrHolder errh;
+
+      res = adbl_trx_delete (m_trx, table, p_params, errh.err);
+      if (res)
+      {
+        throw std::runtime_error (errh.text());
+      }      
+    }
+    
     number_t trx_insert (const char* table, CapeUdc* p_values)
     {
       number_t inserted_id = 0;
