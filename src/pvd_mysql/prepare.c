@@ -4,6 +4,7 @@
 
 // cape includes
 #include "stc/cape_stream.h"
+#include "fmt/cape_json.h"
 
 //-----------------------------------------------------------------------------
 
@@ -534,7 +535,7 @@ int adbl_prepare_statement_select (AdblPrepare self, const char* schema, const c
     
     sql_statement = cape_stream_to_str (&stream);
     
-    // printf ("   ** SQL ** %s\n", sql_statement);
+    printf ("   ** SQL ** %s\n", sql_statement);
     
     // prepare the statement 
     if (mysql_stmt_prepare (self->stmt, sql_statement, sql_size) != 0)
