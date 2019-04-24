@@ -20,6 +20,8 @@ add_library             (adbl SHARED ${ADBL_CORE_SOURCES} ${ADBL_CORE_HEADERS})
 target_link_libraries   (adbl cape)
 set_target_properties   (adbl PROPERTIES VERSION 1.0.1 SOVERSION 1.0.1)
 
+install (TARGETS adbl DESTINATION lib)
+
 #----------------------------------------------------------------------------------
 
 INCLUDE_DIRECTORIES("." "core")
