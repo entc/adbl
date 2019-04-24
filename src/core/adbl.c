@@ -3,6 +3,7 @@
 // cape includes
 #include "sys/cape_dl.h"
 #include "sys/cape_types.h"
+#include "sys/cape_log.h"
 
 //=============================================================================
 
@@ -266,7 +267,7 @@ int adbl_trx_commit (AdblTrx* p_self, CapeErr err)
   
   if (self->in_trx)
   {
-    printf ("*** ADBL: COMMIT TRANSACTION ***\n");
+    cape_log_msg (CAPE_LL_TRACE, "ADBL", "trx commit", "COMMIT TRANSACTION");
 
     res = self->pvd->pvd_commit (self->session, err);
   }
@@ -285,8 +286,8 @@ int adbl_trx_rollback (AdblTrx* p_self, CapeErr err)
   
   if (self->in_trx)
   {
-    printf ("*** ADBL: ROLLBACK TRANSACTION ***\n");
-
+    cape_log_msg (CAPE_LL_TRACE, "ADBL", "trx rollback", "ROLLBACK TRANSACTION");
+    
     res = self->pvd->pvd_rollback (self->session, err);
   }
   
@@ -301,7 +302,7 @@ int adbl_trx_start (AdblTrx self, CapeErr err)
 {
   if (self->in_trx == FALSE)
   {
-    printf ("*** ADBL: START TRANSACTION ***\n");
+    cape_log_msg (CAPE_LL_TRACE, "ADBL", "trx start", "START TRANSACTION");
     
     int res = self->pvd->pvd_begin (self->session, err);
     if (res)

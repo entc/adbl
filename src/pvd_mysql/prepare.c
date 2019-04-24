@@ -5,6 +5,7 @@
 // cape includes
 #include "stc/cape_stream.h"
 #include "fmt/cape_json.h"
+#include "sys/cape_log.h"
 
 //-----------------------------------------------------------------------------
 
@@ -258,8 +259,6 @@ int adbl_prepare_binds_all (AdblPrepare self, CapeErr err)
   int res;
   number_t size = self->columns_used + self->params_used;
   
-  //printf ("HH: C = %li | P = %li\n", self->columns_used, self->params_used);
-  
   // allocate bind buffer
   self->bindsValues = adbl_bindvars_new (size);
 
@@ -311,8 +310,6 @@ number_t adbl_prepare_execute (AdblPrepare self, MYSQL* mysql, CapeErr err)
   
   number_t last_insert_id = mysql_insert_id (mysql);
 
-  // printf ("LAST INSERT ID: %li\n", last_insert_id);
-  
   return last_insert_id;
 }
 
@@ -535,7 +532,7 @@ int adbl_prepare_statement_select (AdblPrepare self, const char* schema, const c
     
     sql_statement = cape_stream_to_str (&stream);
     
-    printf ("   ** SQL ** %s\n", sql_statement);
+    cape_log_msg (CAPE_LL_TRACE, "ADBL", "mysql **SQL**", sql_statement);    
     
     // prepare the statement 
     if (mysql_stmt_prepare (self->stmt, sql_statement, sql_size) != 0)
@@ -592,7 +589,7 @@ int adbl_prepare_statement_insert (AdblPrepare self, const char* schema, const c
     
     sql_statement = cape_stream_to_str (&stream);
     
-    //printf ("   ** SQL ** %s\n", sql_statement);
+    cape_log_msg (CAPE_LL_TRACE, "ADBL", "mysql **SQL**", sql_statement);    
     
     // prepare the statement 
     if (mysql_stmt_prepare (self->stmt, sql_statement, sql_size) != 0)
@@ -640,7 +637,7 @@ int adbl_prepare_statement_delete (AdblPrepare self, const char* schema, const c
     
     sql_statement = cape_stream_to_str (&stream);
     
-    printf ("   ** SQL ** %s\n", sql_statement);
+    cape_log_msg (CAPE_LL_TRACE, "ADBL", "mysql **SQL**", sql_statement);    
     
     // prepare the statement 
     if (mysql_stmt_prepare (self->stmt, sql_statement, sql_size) != 0)
@@ -692,7 +689,7 @@ int adbl_prepare_statement_update (AdblPrepare self, const char* schema, const c
     
     sql_statement = cape_stream_to_str (&stream);
     
-    printf ("   ** SQL ** %s\n", sql_statement);
+    cape_log_msg (CAPE_LL_TRACE, "ADBL", "mysql **SQL**", sql_statement);    
     
     // prepare the statement 
     if (mysql_stmt_prepare (self->stmt, sql_statement, sql_size) != 0)
@@ -753,7 +750,7 @@ int adbl_prepare_statement_setins (AdblPrepare self, const char* schema, const c
     
     sql_statement = cape_stream_to_str (&stream);
     
-    printf ("   ** SQL ** %s\n", sql_statement);
+    cape_log_msg (CAPE_LL_TRACE, "ADBL", "mysql **SQL**", sql_statement);    
     
     // prepare the statement 
     if (mysql_stmt_prepare (self->stmt, sql_statement, sql_size) != 0)

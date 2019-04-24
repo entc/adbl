@@ -6,6 +6,7 @@
 // cape includes
 #include "sys/cape_types.h"
 #include "stc/cape_stream.h"
+#include "sys/cape_log.h"
 
 //-----------------------------------------------------------------------------
 
@@ -17,7 +18,7 @@ static int init_status = 0;
 
 void __attribute__ ((constructor)) library_init (void)
 {
-  printf ("MYSQLClient: INIT\n");
+  cape_log_msg (CAPE_LL_DEBUG, "ADBL", "load library", "MYSQL INIT");
   
   mysql_library_init (0, NULL, NULL);  
 }
@@ -26,7 +27,7 @@ void __attribute__ ((constructor)) library_init (void)
 
 void __attribute__ ((destructor)) library_fini (void)
 {
-  printf ("MYSQLClient: DONE\n");
+  cape_log_msg (CAPE_LL_DEBUG, "ADBL", "unload library", "MYSQL DONE");
 
   mysql_thread_end ();
   
@@ -39,8 +40,6 @@ void adbl_mysql_init ()
 {
   if (init_status == 0)
   {
-    printf ("MYSQLClient: INIT\n");
-
     mysql_library_init (0, NULL, NULL);
   }
   
@@ -55,8 +54,6 @@ void adbl_mysql_done ()
   
   if (init_status == 0)
   {
-    printf ("MYSQLClient: DONE\n");
-    
     mysql_thread_end ();
 
     mysql_library_end ();    
@@ -136,11 +133,9 @@ void __STDCALL adbl_pvd_close (AdblPvdSession* p_self)
 {
   AdblPvdSession self = *p_self;
   
-  printf ("MYSQL: close session\n");
+  cape_log_msg (CAPE_LL_DEBUG, "ADBL", "mysql", "session closed");
   
   cape_str_del (&(self->schema));
-  
-  
   
   mysql_close (self->mysql);
   
@@ -158,8 +153,7 @@ CapeUdc __STDCALL adbl_pvd_get (AdblPvdSession self, const char* table, CapeUdc*
   
   if (cursor == NULL)
   {
-    printf ("ERROR: %s\n", cape_err_text(err));
-    
+    cape_log_msg (CAPE_LL_ERROR, "ADBL", "mysql get", cape_err_text(err));
     return NULL;
   }
   
@@ -196,16 +190,14 @@ number_t __STDCALL adbl_pvd_ins (AdblPvdSession self, const char* table, CapeUdc
   res = adbl_prepare_statement_insert (pre, self->schema, table, self->ansi_quotes, err);
   if (res)
   {
-    printf ("WARN: %s\n", cape_err_text(err));
-    
+    cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql insert", cape_err_text(err));    
     goto exit_and_cleanup;
   }
   
   res = adbl_prepare_binds_values (pre, err);
   if (res)
   {
-    printf ("WARN: %s\n", cape_err_text(err));
-
+    cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql insert", cape_err_text(err));    
     goto exit_and_cleanup;
   }
   
@@ -231,14 +223,14 @@ int __STDCALL adbl_pvd_del (AdblPvdSession self, const char* table, CapeUdc* p_p
   res = adbl_prepare_statement_delete (pre, self->schema, table, self->ansi_quotes, err);
   if (res)
   {
-    printf ("WARN: %s\n", cape_err_text(err));
-    
+    cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql delete", cape_err_text(err));    
     goto exit_and_cleanup;
   }
   
   res = adbl_prepare_binds_params (pre, err);
   if (res)
   {
+    cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql delete", cape_err_text(err));    
     goto exit_and_cleanup;    
   }
     
@@ -264,8 +256,7 @@ int __STDCALL adbl_pvd_set (AdblPvdSession self, const char* table, CapeUdc* p_p
   res = adbl_prepare_statement_update (pre, self->schema, table, self->ansi_quotes, err);
   if (res)
   {
-    printf ("WARN: %s\n", cape_err_text(err));
-    
+    cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql set", cape_err_text(err));    
     goto exit_and_cleanup;
   }
   
@@ -273,8 +264,7 @@ int __STDCALL adbl_pvd_set (AdblPvdSession self, const char* table, CapeUdc* p_p
   res = adbl_prepare_binds_all (pre, err);
   if (res)
   {
-    printf ("WARN: %s\n", cape_err_text(err));
-
+    cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql set", cape_err_text(err));    
     goto exit_and_cleanup;    
   }
   
@@ -414,14 +404,12 @@ int __STDCALL adbl_pvd_cursor_next (AdblPvdCursor self)
     }
     case 1:   // some kind of error happened
     {
-      printf ("ERROR: %s\n", mysql_stmt_error(self->stmt));
-      
+      cape_log_msg (CAPE_LL_ERROR, "ADBL", "cursor next", mysql_stmt_error(self->stmt));
       return FALSE;
     }
     case MYSQL_DATA_TRUNCATED:  // the data in the column don't fits into the binded buffer (1024)
     {
-      printf ("WARNING: %s\n", "data truncated");
-      
+      cape_log_msg (CAPE_LL_WARN, "ADBL", "cursor next", "data truncated");      
       return TRUE;
     }
   }
@@ -449,17 +437,12 @@ CapeUdc __STDCALL adbl_pvd_cursor_get (AdblPvdCursor self)
         
         if (adbl_bindvars_get (self->binds, i, item))
         {
-          cape_udc_print (item);
-
           cape_udc_add (result_row, &item);
         }
         else
         {
-          printf ("IS NULL\n");
-          
           cape_udc_del (&item);
         }
-
         
         i++;
       }
