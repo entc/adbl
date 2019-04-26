@@ -16,11 +16,11 @@ SET(ADBL_CORE_HEADERS
 
 INCLUDE_DIRECTORIES("." "../../cape/src")
 
-add_library             (adbl SHARED ${ADBL_CORE_SOURCES} ${ADBL_CORE_HEADERS})
-target_link_libraries   (adbl cape)
-set_target_properties   (adbl PROPERTIES VERSION 1.0.1 SOVERSION 1.0.1)
+add_library             (adbl2 SHARED ${ADBL_CORE_SOURCES} ${ADBL_CORE_HEADERS})
+target_link_libraries   (adbl2 cape)
+set_target_properties   (adbl2 PROPERTIES VERSION 2.0.1 SOVERSION 2.0.1)
 
-install (TARGETS adbl DESTINATION lib)
+install (TARGETS adbl2 DESTINATION lib)
 
 #----------------------------------------------------------------------------------
 
@@ -31,7 +31,7 @@ SET(ADBL_APP_SOURCES
 )
 
 add_executable          (adbl_app ${ADBL_APP_SOURCES})
-target_link_libraries   (adbl_app adbl)
+target_link_libraries   (adbl_app adbl2)
 set_target_properties   (adbl_app PROPERTIES VERSION 1.0.1 SOVERSION 1.0.1)
 
 #----------------------------------------------------------------------------------

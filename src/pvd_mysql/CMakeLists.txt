@@ -5,7 +5,7 @@ SET(CMAKE_MACOSX_RPATH 0)
 SET(CMAKE_POSITION_INDEPENDENT_CODE ON)
 SET(CMAKE_BUILD_TYPE Debug)
 
-find_package(AdblMysql )
+find_package(AdblMysql)
 
 IF(MYSQL_FOUND)
 
@@ -17,8 +17,10 @@ IF(MYSQL_FOUND)
     prepare.c
   )
 
-  ADD_LIBRARY(adbl_mysql SHARED ${CORE_SOURCES} )
-  TARGET_LINK_LIBRARIES( adbl_mysql adbl cape ${MYSQL_LIBRARIES})
+  ADD_LIBRARY(adbl2_mysql SHARED ${CORE_SOURCES} )
+  TARGET_LINK_LIBRARIES( adbl2_mysql adbl2 cape ${MYSQL_LIBRARIES})
+
+  install (TARGETS adbl2_mysql DESTINATION modules)
 
   #--------------------------------------------------------------
   # unit tests 
@@ -26,7 +28,7 @@ IF(MYSQL_FOUND)
   INCLUDE_DIRECTORIES( "." ${MYSQL_INCLUDES})
 
   add_executable          (ut_basic "tests/ut_basic.c")
-  target_link_libraries   (ut_basic adbl_mysql)
+  target_link_libraries   (ut_basic adbl2_mysql)
 
   
 ELSE(MYSQL_FOUND)
