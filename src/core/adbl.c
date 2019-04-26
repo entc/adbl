@@ -4,6 +4,7 @@
 #include "sys/cape_dl.h"
 #include "sys/cape_types.h"
 #include "sys/cape_log.h"
+#include "fmt/cape_json.h"
 
 //=============================================================================
 
@@ -212,6 +213,27 @@ AdblSession adbl_session_open (AdblCtx ctx, CapeUdc connection_properties, CapeE
     
     return self;
   }
+}
+
+//-----------------------------------------------------------------------------
+
+AdblSession adbl_session_open_file (AdblCtx ctx, const char* config_file, CapeErr err)
+{
+  AdblSession res = NULL;
+  
+  CapeUdc connection_properties = cape_json_from_file (config_file, NULL, err);
+  
+  // something went wrong?
+  if (connection_properties == NULL)
+  {
+    return NULL;
+  }
+  
+  res = adbl_session_open (ctx, connection_properties, err);
+  
+  cape_udc_del (&connection_properties);
+  
+  return res;
 }
 
 //-----------------------------------------------------------------------------

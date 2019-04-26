@@ -28,6 +28,8 @@ struct AdblSession_s; typedef struct AdblSession_s* AdblSession;
 
 __CAPE_LIBEX   AdblSession        adbl_session_open          (AdblCtx, CapeUdc connection_properties, CapeErr);
 
+__CAPE_LIBEX   AdblSession        adbl_session_open_file     (AdblCtx, const char* config_file, CapeErr);
+
 __CAPE_LIBEX   void               adbl_session_close         (AdblSession*);
 
 //-----------------------------------------------------------------------------
