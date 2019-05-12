@@ -285,16 +285,20 @@ AdblTrx adbl_trx_new  (AdblSession session, CapeErr err)
 int adbl_trx_commit (AdblTrx* p_self, CapeErr err)
 {
   int res = CAPE_ERR_NONE;
-  AdblTrx self = *p_self;
-  
-  if (self->in_trx)
-  {
-    cape_log_msg (CAPE_LL_TRACE, "ADBL", "trx commit", "COMMIT TRANSACTION");
 
-    res = self->pvd->pvd_commit (self->session, err);
-  }
+  if (*p_self)
+  {
+    AdblTrx self = *p_self;
     
-  CAPE_DEL(p_self, struct AdblTrx_s);
+    if (self->in_trx)
+    {
+      cape_log_msg (CAPE_LL_TRACE, "ADBL", "trx commit", "COMMIT TRANSACTION");
+      
+      res = self->pvd->pvd_commit (self->session, err);
+    }
+    
+    CAPE_DEL(p_self, struct AdblTrx_s);
+  }
   
   return res;
 }
@@ -304,17 +308,21 @@ int adbl_trx_commit (AdblTrx* p_self, CapeErr err)
 int adbl_trx_rollback (AdblTrx* p_self, CapeErr err)
 {
   int res = CAPE_ERR_NONE;
-  AdblTrx self = *p_self;
-  
-  if (self->in_trx)
+
+  if (*p_self)
   {
-    cape_log_msg (CAPE_LL_TRACE, "ADBL", "trx rollback", "ROLLBACK TRANSACTION");
+    AdblTrx self = *p_self;
     
-    res = self->pvd->pvd_rollback (self->session, err);
+    if (self->in_trx)
+    {
+      cape_log_msg (CAPE_LL_TRACE, "ADBL", "trx rollback", "ROLLBACK TRANSACTION");
+      
+      res = self->pvd->pvd_rollback (self->session, err);
+    }
+    
+    CAPE_DEL(p_self, struct AdblTrx_s);    
   }
-  
-  CAPE_DEL(p_self, struct AdblTrx_s);
-  
+
   return res;
 }
 
