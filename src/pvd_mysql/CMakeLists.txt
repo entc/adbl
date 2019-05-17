@@ -20,7 +20,7 @@ IF(MYSQL_FOUND)
   ADD_LIBRARY(adbl2_mysql SHARED ${CORE_SOURCES} )
   TARGET_LINK_LIBRARIES( adbl2_mysql adbl2 cape ${MYSQL_LIBRARIES})
 
-  install (TARGETS adbl2_mysql DESTINATION modules)
+  install (TARGETS adbl2_mysql DESTINATION lib)
 
   #--------------------------------------------------------------
   # unit tests 

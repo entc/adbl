@@ -22,6 +22,9 @@ set_target_properties   (adbl2 PROPERTIES VERSION 2.0.1 SOVERSION 2.0.1)
 
 install (TARGETS adbl2 DESTINATION lib)
 
+# for docker
+INSTALL (TARGETS adbl2 DESTINATION docker/qore/lib)
+
 #----------------------------------------------------------------------------------
 
 INCLUDE_DIRECTORIES("." "core")
