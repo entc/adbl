@@ -286,7 +286,7 @@ int adbl_bind_get (MYSQL_BIND* bind, CapeUdc item)
   {
     case CAPE_UDC_STRING:
     {
-      // copy the buffer
+      // copy from buffer
       cape_udc_set_s_cp (item, bind->buffer);
       
       break;

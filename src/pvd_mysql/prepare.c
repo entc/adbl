@@ -57,6 +57,8 @@ AdblPrepare adbl_prepare_new (MYSQL* mysql, CapeUdc* p_params, CapeUdc* p_values
         case CAPE_UDC_BOOL:
         case CAPE_UDC_FLOAT:
         case CAPE_UDC_NULL:
+        case CAPE_UDC_NODE:
+        case CAPE_UDC_LIST:
         {
           cape_udc_add (self->values, &item);
           break;
