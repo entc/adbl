@@ -1,5 +1,9 @@
 #include "bindvars.h"
 
+// cape includes
+#include <fmt/cape_json.h>
+#include <sys/cape_log.h>
+
 //-----------------------------------------------------------------------------
 
 struct AdblBindVars_s
@@ -146,6 +150,23 @@ void adbl_bind_set (MYSQL_BIND* bind, CapeUdc item)
 
       break;
     }
+    case CAPE_UDC_LIST:
+    case CAPE_UDC_NODE:
+    {
+      // convert into string
+      CapeString h = cape_json_to_s (item);
+      
+      bind->buffer_type = MYSQL_TYPE_STRING;
+      bind->buffer = h;
+      bind->buffer_length = strlen (h);
+      bind->is_null = NULL;
+      bind->length = 0;
+      bind->error = 0;
+
+      bind->pack_length = 1;
+
+      break;
+    }
   }
 }
 
@@ -230,6 +251,23 @@ void adbl_bind_add (MYSQL_BIND* bind, CapeUdc item)
       
       break;
     }
+    case CAPE_UDC_LIST:
+    case CAPE_UDC_NODE:
+    {
+      bind->buffer_type = MYSQL_TYPE_STRING;
+      
+      bind->buffer = CAPE_ALLOC(2048);
+      memset (bind->buffer, 0, 2048);
+      
+      bind->buffer_length = 2048;
+      bind->is_null = CAPE_ALLOC(sizeof(my_bool));
+      bind->length = 0;
+      bind->error = 0;
+      
+      bind->pack_length = 1;
+      
+      break;
+    }
   }  
 }
 
@@ -274,7 +312,24 @@ int adbl_bind_get (MYSQL_BIND* bind, CapeUdc item)
       
       break;
     }
-  } 
+    case CAPE_UDC_LIST:
+    case CAPE_UDC_NODE:
+    {
+      // convert into node
+      CapeUdc h = cape_json_from_s (bind->buffer, NULL);
+
+      if (h)
+      {
+        cape_udc_merge_mv (item, &h);
+      }
+      else
+      {
+        cape_log_fmt (CAPE_LL_ERROR, "ADBL", "bind get", "can't convert result into node / list");
+      }
+      
+      break;
+    }
+  }
   
   return TRUE;
 }
