@@ -23,7 +23,7 @@ IF(MYSQL_FOUND)
   install (TARGETS adbl2_mysql DESTINATION lib)
   
   # for docker
-  INSTALL (TARGETS adbl2_mysql DESTINATION docker/qore/lib)
+  INSTALL (TARGETS adbl2_mysql DESTINATION docker/qore/mods/adbl)
   INSTALL (FILES ${MYSQL_LIBRARIES} DESTINATION docker/qore/lib)
 
   #--------------------------------------------------------------
