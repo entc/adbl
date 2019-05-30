@@ -10,16 +10,37 @@ if (NOT MYSQL_FOUND)
 
     find_path (MYSQL_INCLUDES
       NAMES mysql.h
-      HINTS ${CMAKE_INSTALL_PREFIX} ${CMAKE_CURRENT_SOURCE_DIR}"/3rdParty/mysql/include" "/opt/local/include/mariadb/mysql/"
+      HINTS "/opt/local/include/mariadb/mysql/"
       PATH_SUFFIXES mariadb
     )
+    
+    if (MYSQL_INCLUDES)
+    
+    else ()
+
+      find_path (MYSQL_INCLUDES
+        NAMES mysql.h
+        HINTS "/opt/local/include/mariadb/mysql/"
+        PATH_SUFFIXES mysql
+      )
+    
+    endif ()
 
     ##____________________________________________________________________________
     ## Check for the library
 
-    find_library (MYSQL_LIBRARIES mysqlclient 
-      HINTS ${CMAKE_INSTALL_PREFIX} ${CMAKE_CURRENT_SOURCE_DIR}"/3rdParty/mysql/lib" "/opt/local/lib/mariadb/mysql/"
+    find_library (MYSQL_LIBRARY_01 mysqlclient 
+      HINTS "/opt/local/lib/mariadb/mysql/" "/usr/lib/"
     )
+    
+    # Correct Symlinks
+    if(IS_SYMLINK ${MYSQL_LIBRARY_01})
+      get_filename_component(TMP ${MYSQL_LIBRARY_01} REALPATH)
+      list (APPEND MYSQL_LIBRARIES ${TMP})
+    else()
+      list (APPEND MYSQL_LIBRARIES ${MYSQL_LIBRARY_01})
+    endif()
+
 
     ##____________________________________________________________________________
     ## Actions taken when all components have been found

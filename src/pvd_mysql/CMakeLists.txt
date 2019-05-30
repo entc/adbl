@@ -21,6 +21,10 @@ IF(MYSQL_FOUND)
   TARGET_LINK_LIBRARIES( adbl2_mysql adbl2 cape ${MYSQL_LIBRARIES})
 
   install (TARGETS adbl2_mysql DESTINATION lib)
+  
+  # for docker
+  INSTALL (TARGETS adbl2_mysql DESTINATION docker/qore/lib)
+  INSTALL (FILES ${MYSQL_LIBRARIES} DESTINATION docker/qore/lib)
 
   #--------------------------------------------------------------
   # unit tests 
