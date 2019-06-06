@@ -99,7 +99,10 @@ AdblPvdSession __STDCALL adbl_pvd_open (CapeUdc cp, CapeErr err)
   
   // we start with no transaction -> activate autocommit
   mysql_options (self->mysql, MYSQL_INIT_COMMAND, "SET autocommit=1");
-  
+
+  // we start with no transaction -> activate autocommit
+  mysql_options (self->mysql, MYSQL_INIT_COMMAND, "SET NAMES UTF8");
+
   // connect
   if(!mysql_real_connect (self->mysql, cape_udc_get_s (cp, "host", "127.0.0.1"), cape_udc_get_s (cp, "user", "admin"), cape_udc_get_s (cp, "pass", "admin"), self->schema, cape_udc_get_n (cp, "port", 3306), 0, CLIENT_MULTI_RESULTS))
   {    
