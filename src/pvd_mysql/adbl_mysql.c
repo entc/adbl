@@ -82,14 +82,10 @@ AdblPvdSession __STDCALL adbl_pvd_open (CapeUdc cp, CapeErr err)
   
   self->ansi_quotes = FALSE;
   
-  // call this before mysql_init
-  //adbl_mysql_init ();
-  
   // init mysql
   self->mysql = mysql_init (NULL);
   
   self->schema = cape_str_cp (cape_udc_get_s (cp, "schema", NULL));
-  
   
   // settings
   mysql_options (self->mysql, MYSQL_OPT_COMPRESS, 0);
@@ -100,7 +96,7 @@ AdblPvdSession __STDCALL adbl_pvd_open (CapeUdc cp, CapeErr err)
   // we start with no transaction -> activate autocommit
   mysql_options (self->mysql, MYSQL_INIT_COMMAND, "SET autocommit=1");
 
-  // we start with no transaction -> activate autocommit
+  // important, otherwise UTF8 is not handled correctly
   mysql_options (self->mysql, MYSQL_INIT_COMMAND, "SET NAMES UTF8");
 
   // connect
