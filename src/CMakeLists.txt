@@ -40,5 +40,5 @@ set_target_properties   (adbl_app PROPERTIES VERSION 1.0.1 SOVERSION 1.0.1)
 #----------------------------------------------------------------------------------
 
 SUBDIRS(pvd_mysql)
-
+SUBDIRS(pvd_sqlite)
 
