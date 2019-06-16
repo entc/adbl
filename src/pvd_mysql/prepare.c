@@ -43,7 +43,7 @@ AdblPrepare adbl_prepare_new (MYSQL* mysql, CapeUdc* p_params, CapeUdc* p_values
   {
     CapeUdc values = *p_values;
     
-    self->values = cape_udc_new (CAPE_UDC_LIST, NULL);
+    self->values = cape_udc_new (CAPE_UDC_NODE, NULL);
     
     CapeUdcCursor* cursor = cape_udc_cursor_new (values, CAPE_DIRECTION_FORW);
     
@@ -728,6 +728,19 @@ int adbl_prepare_statement_setins (AdblPrepare self, const char* schema, const c
   CapeStream stream = cape_stream_new ();
   CapeString sql_statement = NULL;
   
+  // due we need to consider the params aswell we just the params
+  // for the first part and values for the second
+  // params can be merged by values
+  cape_udc_merge_cp (self->params, self->values);
+  
+  // now we need to swap, because the correct order is values before params
+  {
+    CapeUdc h = self->params;
+
+    self->params = self->values;
+    self->values = h;
+  }
+  
   cape_stream_append_str (stream, "INSERT INTO ");
   
   adbl_pvd_append_table (stream, ansi, schema, table);
@@ -735,7 +748,7 @@ int adbl_prepare_statement_setins (AdblPrepare self, const char* schema, const c
   cape_stream_append_str (stream, " (");
   
   // create columns for mysql for all parameters
-  self->columns_used = adbl_pvd_append_columns (stream, ansi, self->values, table);
+  self->params_used = adbl_pvd_append_columns (stream, ansi, self->values, table);
   
   cape_stream_append_str (stream, ") VALUES (");
   
@@ -745,7 +758,7 @@ int adbl_prepare_statement_setins (AdblPrepare self, const char* schema, const c
   
   cape_stream_append_str (stream, " ON DUPLICATE KEY UPDATE ");
   
-  self->columns_used = adbl_pvd_append_update (stream, ansi, self->values, table);
+  self->columns_used = adbl_pvd_append_update (stream, ansi, self->params, table);
   
   {
     number_t sql_size = cape_stream_size (stream);

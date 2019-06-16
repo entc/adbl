@@ -281,7 +281,34 @@ exit_and_cleanup:
 
 number_t __STDCALL adbl_pvd_ins_or_set (AdblPvdSession self, const char* table, CapeUdc* p_params, CapeUdc* p_values, CapeErr err)
 {
+  int res;
+  number_t last_insert_id = 0;
+
+  AdblPrepare pre = adbl_prepare_new (self->mysql, p_params, p_values);
+
+  res = adbl_prepare_statement_setins (pre, self->schema, table, self->ansi_quotes, err);
+  if (res)
+  {
+    cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql ins_or_set", cape_err_text(err));
+    goto exit_and_cleanup;
+  }
+
+  // all binds are done as parameter
+  res = adbl_prepare_binds_all (pre, err);
+  if (res)
+  {
+    cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql ins_or_set", cape_err_text(err));
+    goto exit_and_cleanup;
+  }
+
+  last_insert_id = adbl_prepare_execute (pre, self->mysql, err);
   
+  // --------------
+exit_and_cleanup:
+  
+  adbl_prepare_del (&pre);
+  
+  return last_insert_id;
 }
 
 //-----------------------------------------------------------------------------

@@ -17,7 +17,12 @@ IF(MYSQL_FOUND)
     prepare.c
   )
 
-  ADD_LIBRARY(adbl2_mysql SHARED ${CORE_SOURCES} )
+  SET (CORE_HEADERS
+    bindvars.h
+    prepare.h
+  )
+
+  ADD_LIBRARY(adbl2_mysql SHARED ${CORE_SOURCES} ${CORE_HEADERS})
   TARGET_LINK_LIBRARIES( adbl2_mysql adbl2 cape ${MYSQL_LIBRARIES})
 
   install (TARGETS adbl2_mysql DESTINATION adbl)
