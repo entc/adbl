@@ -36,8 +36,8 @@ IF(MYSQL_FOUND)
   
   INCLUDE_DIRECTORIES( "." ${MYSQL_INCLUDES})
 
-  add_executable          (ut_basic "tests/ut_basic.c")
-  target_link_libraries   (ut_basic adbl2_mysql)
+  add_executable          (ut_basic_mysql "tests/ut_basic.c")
+  target_link_libraries   (ut_basic_mysql adbl2_mysql)
 
   
 ELSE(MYSQL_FOUND)

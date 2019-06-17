@@ -316,7 +316,7 @@ int adbl_bind_get (MYSQL_BIND* bind, CapeUdc item)
     case CAPE_UDC_NODE:
     {
       // convert into node
-      CapeUdc h = cape_json_from_s (bind->buffer, NULL);
+      CapeUdc h = cape_json_from_s (bind->buffer);
 
       if (h)
       {

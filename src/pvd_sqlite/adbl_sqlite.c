@@ -21,6 +21,8 @@ struct AdblPvdSession_s
   
   CapeString file;
   
+  sqlite3_mutex* mutex;
+  
 };
 
 //-----------------------------------------------------------------------------
@@ -60,6 +62,8 @@ AdblPvdSession __STDCALL adbl_pvd_open (CapeUdc cp, CapeErr err)
     }
   }
   
+  self->mutex = sqlite3_mutex_alloc (SQLITE_MUTEX_FAST);
+  
   return self;
   
 exit_and_cleanup:
@@ -78,11 +82,14 @@ void __STDCALL adbl_pvd_close (AdblPvdSession* p_self)
   cape_log_msg (CAPE_LL_DEBUG, "ADBL", "sqlite3", "session closed");
   
   cape_str_del (&(self->schema));
+  cape_str_del (&(self->file));
   
   if (self->handle)
   {
     sqlite3_close (self->handle);    
   }
+  
+  sqlite3_mutex_free (self->mutex);
   
   CAPE_DEL(p_self, struct AdblPvdSession_s);
 }
@@ -129,23 +136,34 @@ number_t __STDCALL adbl_pvd_ins (AdblPvdSession self, const char* table, CapeUdc
   
   AdblPrepare pre = adbl_prepare_new (NULL, p_values);
   
-  res = adbl_prepare_statement_insert (pre, self->schema, table, err);
+  adbl_prepare_statement_insert (pre, self->schema, table);
+  
+  res = adbl_prepare_prepare (pre, self->handle, err);
   if (res)
   {
-    cape_log_msg (CAPE_LL_WARN, "ADBL", "sqlite3 insert", cape_err_text(err));    
+    goto exit_and_cleanup;
+  }
+  
+  res = adbl_prepare_bind (pre, err);
+  if (res)
+  {
     goto exit_and_cleanup;
   }
   
   res = adbl_prepare_run (pre, self->handle, err);
   if (res)
   {
-    cape_log_msg (CAPE_LL_WARN, "ADBL", "sqlite3 insert", cape_err_text(err));    
     goto exit_and_cleanup;
   }
   
-  last_insert_id = adbl_prepare_lastid (pre, self->handle, err);
+  last_insert_id = adbl_prepare_lastid (pre, self->handle, self->schema, table, err);
   
 exit_and_cleanup:
+  
+  if (cape_err_code (err))
+  {
+    cape_log_msg (CAPE_LL_WARN, "ADBL", "sqlite3 insert", cape_err_text(err));    
+  }
   
   adbl_prepare_del (&pre);  
   return last_insert_id;
@@ -158,17 +176,23 @@ int __STDCALL adbl_pvd_del (AdblPvdSession self, const char* table, CapeUdc* p_p
   int res;
   AdblPrepare pre = adbl_prepare_new (p_params, NULL);
   
-  res = adbl_prepare_statement_delete (pre, self->schema, table, err);
+  adbl_prepare_statement_delete (pre, self->schema, table);
+  
+  res = adbl_prepare_prepare (pre, self->handle, err);
   if (res)
   {
-    cape_log_msg (CAPE_LL_WARN, "ADBL", "sqlite3 delete", cape_err_text(err));    
+    goto exit_and_cleanup;
+  }
+  
+  res = adbl_prepare_bind (pre, err);
+  if (res)
+  {
     goto exit_and_cleanup;
   }
   
   res = adbl_prepare_run (pre, self->handle, err);
   if (res)
   {
-    cape_log_msg (CAPE_LL_WARN, "ADBL", "sqlite3 delete", cape_err_text(err));    
     goto exit_and_cleanup;
   }
   
@@ -187,17 +211,23 @@ int __STDCALL adbl_pvd_set (AdblPvdSession self, const char* table, CapeUdc* p_p
   int res;
   AdblPrepare pre = adbl_prepare_new (p_params, p_values);
   
-  res = adbl_prepare_statement_update (pre, self->schema, table, err);
+  adbl_prepare_statement_update (pre, self->schema, table);
+  
+  res = adbl_prepare_prepare (pre, self->handle, err);
   if (res)
   {
-    cape_log_msg (CAPE_LL_WARN, "ADBL", "sqlite3 update", cape_err_text(err));    
+    goto exit_and_cleanup;
+  }
+  
+  res = adbl_prepare_bind (pre, err);
+  if (res)
+  {
     goto exit_and_cleanup;
   }
   
   res = adbl_prepare_run (pre, self->handle, err);
   if (res)
   {
-    cape_log_msg (CAPE_LL_WARN, "ADBL", "sqlite3 update", cape_err_text(err));    
     goto exit_and_cleanup;
   }
   
@@ -218,21 +248,27 @@ number_t __STDCALL adbl_pvd_ins_or_set (AdblPvdSession self, const char* table, 
   
   AdblPrepare pre = adbl_prepare_new (p_params, p_values);
   
-  res = adbl_prepare_statement_setins (pre, self->schema, table, err);
+  adbl_prepare_statement_setins (pre, self->schema, table);
+  
+  res = adbl_prepare_prepare (pre, self->handle, err);
   if (res)
   {
-    cape_log_msg (CAPE_LL_WARN, "ADBL", "sqlite3 insert", cape_err_text(err));    
+    goto exit_and_cleanup;
+  }
+  
+  res = adbl_prepare_bind (pre, err);
+  if (res)
+  {
     goto exit_and_cleanup;
   }
   
   res = adbl_prepare_run (pre, self->handle, err);
   if (res)
   {
-    cape_log_msg (CAPE_LL_WARN, "ADBL", "sqlite3 insert", cape_err_text(err));    
     goto exit_and_cleanup;
   }
   
-  last_insert_id = adbl_prepare_lastid (pre, self->handle, err);
+  last_insert_id = adbl_prepare_lastid (pre, self->handle, self->schema, table, err);
   
   exit_and_cleanup:
   
@@ -292,11 +328,7 @@ int __STDCALL adbl_pvd_rollback (AdblPvdSession self, CapeErr err)
 
 struct AdblPvdCursor_s
 {
-  sqlite3_stmt* stmt;
-  
-  number_t pos;
-  
-  CapeUdc values;  
+  AdblPrepare pre;
 };
 
 //-----------------------------------------------------------------------------
@@ -304,28 +336,31 @@ struct AdblPvdCursor_s
 AdblPvdCursor __STDCALL adbl_pvd_cursor_new (AdblPvdSession self, const char* table, CapeUdc* p_params, CapeUdc* p_values, CapeErr err)
 {
   int res;
-  AdblPrepare pre = adbl_prepare_new (p_params, p_values);
   
-  res = adbl_prepare_statement_select (pre, self->schema, table, err);
+  AdblPvdCursor cursor = CAPE_NEW (struct AdblPvdCursor_s);
+  
+  cursor->pre = adbl_prepare_new (p_params, p_values);
+  
+  adbl_prepare_statement_select (cursor->pre, self->schema, table);
+  
+  res = adbl_prepare_prepare (cursor->pre, self->handle, err);
   if (res)
   {
-    cape_log_msg (CAPE_LL_WARN, "ADBL", "sqlite3 select", cape_err_text(err));    
     goto exit_and_cleanup;
   }
   
-  res = adbl_prepare_run (pre, self->handle, err);
+  res = adbl_prepare_bind (cursor->pre, err);
   if (res)
   {
-    cape_log_msg (CAPE_LL_WARN, "ADBL", "sqlite3 select", cape_err_text(err));    
     goto exit_and_cleanup;
   }
   
-  
-  return NULL;
+  return cursor;
   
 // --------------
 exit_and_cleanup:
   
+  adbl_pvd_cursor_del (&cursor);
   return NULL;
 }
 
@@ -336,6 +371,7 @@ void __STDCALL adbl_pvd_cursor_del (AdblPvdCursor* p_self)
   int i;
   AdblPvdCursor self = *p_self;
 
+  adbl_prepare_del (&(self->pre)); 
   
   CAPE_DEL (p_self, struct AdblPvdCursor_s);
 }
@@ -344,17 +380,14 @@ void __STDCALL adbl_pvd_cursor_del (AdblPvdCursor* p_self)
 
 int __STDCALL adbl_pvd_cursor_next (AdblPvdCursor self)
 {
-
-  
-  return TRUE;
+  return adbl_prepare_next (self->pre);
 }
 
 //-----------------------------------------------------------------------------
 
 CapeUdc __STDCALL adbl_pvd_cursor_get (AdblPvdCursor self)
 {
-  
-  return NULL;
+  return cape_udc_cp (adbl_prepare_values (self->pre));
 }
 
 //-----------------------------------------------------------------------------

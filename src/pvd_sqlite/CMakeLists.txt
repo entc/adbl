@@ -29,6 +29,14 @@ IF(SQLITE_FOUND)
   INSTALL (TARGETS adbl2_sqlite3 DESTINATION docker/qore/mods/adbl)
   INSTALL (FILES ${SQLITE_LIBRARIES} DESTINATION docker/qore/lib)
 
+    #--------------------------------------------------------------
+  # unit tests 
+  
+  INCLUDE_DIRECTORIES( "." ${SQLITE_INCLUDES})
+
+  add_executable          (ut_basic_sqlite "tests/ut_basic.c")
+  target_link_libraries   (ut_basic_sqlite adbl2_sqlite3)
+
 ELSE()
 
   MESSAGE(WARNING "sqlite3 was not found on your system" )

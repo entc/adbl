@@ -221,7 +221,7 @@ AdblSession adbl_session_open_file (AdblCtx ctx, const char* config_file, CapeEr
 {
   AdblSession res = NULL;
   
-  CapeUdc connection_properties = cape_json_from_file (config_file, NULL, err);
+  CapeUdc connection_properties = cape_json_from_file (config_file, err);
   
   // something went wrong?
   if (connection_properties == NULL)
