@@ -195,7 +195,7 @@ int adbl_prepare_binds_params (AdblPrepare self, CapeErr err)
     // try to bind all constraint values
     if (mysql_stmt_bind_param (self->stmt, adbl_bindvars_binds(self->bindsParams)) != 0)
     {
-      return cape_err_set (err, CAPE_ERR_3RDPARTY_LIB, mysql_stmt_error (self->stmt));
+      return cape_err_set_fmt (err, CAPE_ERR_3RDPARTY_LIB, "%s: %s", mysql_stmt_sqlstate (self->stmt), mysql_stmt_error (self->stmt));
     }
   }
   
@@ -223,7 +223,7 @@ int adbl_prepare_binds_values (AdblPrepare self, CapeErr err)
     // try to bind all constraint values
     if (mysql_stmt_bind_param (self->stmt, adbl_bindvars_binds(self->bindsValues)) != 0)
     {
-      return cape_err_set (err, CAPE_ERR_3RDPARTY_LIB, mysql_stmt_error (self->stmt));
+      return cape_err_set_fmt (err, CAPE_ERR_3RDPARTY_LIB, "%s: %s", mysql_stmt_sqlstate (self->stmt), mysql_stmt_error (self->stmt));
     }
   }
   
@@ -248,7 +248,7 @@ int adbl_prepare_binds_result (AdblPrepare self, CapeErr err)
   // try to bind result
   if (mysql_stmt_bind_result (self->stmt, adbl_bindvars_binds(self->bindsValues)) != 0)
   {
-    return cape_err_set (err, CAPE_ERR_3RDPARTY_LIB, mysql_stmt_error (self->stmt));
+    return cape_err_set_fmt (err, CAPE_ERR_3RDPARTY_LIB, "%s: %s", mysql_stmt_sqlstate (self->stmt), mysql_stmt_error (self->stmt));
   }
   
   return CAPE_ERR_NONE;
@@ -285,7 +285,7 @@ int adbl_prepare_binds_all (AdblPrepare self, CapeErr err)
   // try to bind result
   if (mysql_stmt_bind_param (self->stmt, adbl_bindvars_binds(self->bindsValues)) != 0)
   {
-    return cape_err_set (err, CAPE_ERR_3RDPARTY_LIB, mysql_stmt_error (self->stmt));
+    return cape_err_set_fmt (err, CAPE_ERR_3RDPARTY_LIB, "%s: %s", mysql_stmt_sqlstate (self->stmt), mysql_stmt_error (self->stmt));
   }
   
   return CAPE_ERR_NONE;  
@@ -293,26 +293,67 @@ int adbl_prepare_binds_all (AdblPrepare self, CapeErr err)
 
 //-----------------------------------------------------------------------------
 
-number_t adbl_prepare_execute (AdblPrepare self, MYSQL* mysql, CapeErr err)
+int adbl_prepare_execute (AdblPrepare self, AdblPvdSession session, CapeErr err)
 {
-  // execute
-  if (mysql_stmt_execute (self->stmt) != 0)
+  int i;
+  
+  for (i = 0; i < 5; i++)
   {
-    cape_err_set (err, CAPE_ERR_3RDPARTY_LIB, mysql_stmt_error (self->stmt));
-    
-    return -1;
+    // execute
+    if (mysql_stmt_execute (self->stmt) != 0)
+    {
+      // try to figure out if the error was serious
+      int res = adbl_check_error (session, mysql_stmt_errno (self->stmt), err);
+      if (res == CAPE_ERR_CONTINUE)
+      {
+        continue;   // statement went wrong, but there is hope to make it right again
+      }
+
+      return cape_err_set_fmt (err, CAPE_ERR_3RDPARTY_LIB, "%s: %s", mysql_stmt_sqlstate (self->stmt), mysql_stmt_error (self->stmt));
+    }
+    else
+    {
+      break;        // statement was succesfull executed
+    }
   }
   
   if (mysql_stmt_store_result (self->stmt) != 0)
   {
-    cape_err_set (err, CAPE_ERR_3RDPARTY_LIB, mysql_stmt_error (self->stmt));
-    
-    return -1;
+    return cape_err_set_fmt (err, CAPE_ERR_3RDPARTY_LIB, "%s: %s", mysql_stmt_sqlstate (self->stmt), mysql_stmt_error (self->stmt));
   }
   
-  number_t last_insert_id = mysql_insert_id (mysql);
+  return CAPE_ERR_NONE;
+}
 
-  return last_insert_id;
+//-----------------------------------------------------------------------------
+
+int adbl_prepare_prepare (AdblPrepare self, AdblPvdSession session, CapeStream stream, CapeErr err)
+{
+  int i;
+  
+  cape_log_msg (CAPE_LL_TRACE, "ADBL", "mysql **SQL**", cape_stream_get (stream));    
+
+  for (i = 0; i < 5; i++)
+  {
+    // execute
+    if (mysql_stmt_prepare (self->stmt, cape_stream_get (stream), cape_stream_size (stream)) != 0)
+    {
+      // try to figure out if the error was serious
+      int res = adbl_check_error (session, mysql_stmt_errno (self->stmt), err);
+      if (res == CAPE_ERR_CONTINUE)
+      {
+        continue;   // statement went wrong, but there is hope to make it right again
+      }
+      
+      return cape_err_set_fmt (err, CAPE_ERR_3RDPARTY_LIB, "%s: %s", mysql_stmt_sqlstate (self->stmt), mysql_stmt_error (self->stmt));
+    }
+    else
+    {
+      break;        // statement was succesfull prepared
+    }
+  }
+
+  return CAPE_ERR_NONE;
 }
 
 //-----------------------------------------------------------------------------
@@ -511,12 +552,11 @@ void adbl_pvd_append_table (CapeStream stream, int ansi, const char* schema, con
 
 //-----------------------------------------------------------------------------
 
-int adbl_prepare_statement_select (AdblPrepare self, const char* schema, const char* table, int ansi, CapeErr err)
+int adbl_prepare_statement_select (AdblPrepare self, AdblPvdSession session, const char* schema, const char* table, int ansi, CapeErr err)
 {
   int res;
   
   CapeStream stream = cape_stream_new ();
-  CapeString sql_statement = NULL;
   
   cape_stream_append_str (stream, "SELECT ");
   
@@ -529,47 +569,20 @@ int adbl_prepare_statement_select (AdblPrepare self, const char* schema, const c
   
   self->params_used = adbl_prepare_append_where_clause (stream, ansi, self->params, table);
   
-  {
-    number_t sql_size = cape_stream_size (stream);
-    
-    sql_statement = cape_stream_to_str (&stream);
-    
-    cape_log_msg (CAPE_LL_TRACE, "ADBL", "mysql **SQL**", sql_statement);    
-    
-    // prepare the statement 
-    if (mysql_stmt_prepare (self->stmt, sql_statement, sql_size) != 0)
-    {
-      res = cape_err_set (err, CAPE_ERR_3RDPARTY_LIB, mysql_stmt_error (self->stmt));
-      goto exit_and_cleanup;
-    }
-  }
+  res = adbl_prepare_prepare (self, session, stream, err);
   
-  res = CAPE_ERR_NONE;
-  
-  // --------------
-  exit_and_cleanup:
-  
-  if (stream)
-  {
-    cape_stream_del (&stream);
-  }
-  
-  if (sql_statement)
-  {
-    cape_str_del (&sql_statement);
-  }
+  cape_stream_del (&stream);
   
   return res;
 }
 
 //-----------------------------------------------------------------------------
 
-int adbl_prepare_statement_insert (AdblPrepare self, const char* schema, const char* table, int ansi, CapeErr err)
+int adbl_prepare_statement_insert (AdblPrepare self, AdblPvdSession session, const char* schema, const char* table, int ansi, CapeErr err)
 {
   int res;
   
   CapeStream stream = cape_stream_new ();
-  CapeString sql_statement = NULL;
 
   cape_stream_append_str (stream, "INSERT INTO ");
   
@@ -586,47 +599,20 @@ int adbl_prepare_statement_insert (AdblPrepare self, const char* schema, const c
 
   cape_stream_append_str (stream, ")");
   
-  {
-    number_t sql_size = cape_stream_size (stream);
-    
-    sql_statement = cape_stream_to_str (&stream);
-    
-    cape_log_msg (CAPE_LL_TRACE, "ADBL", "mysql **SQL**", sql_statement);    
-    
-    // prepare the statement 
-    if (mysql_stmt_prepare (self->stmt, sql_statement, sql_size) != 0)
-    {
-      res = cape_err_set (err, CAPE_ERR_3RDPARTY_LIB, mysql_stmt_error (self->stmt));
-      goto exit_and_cleanup;
-    }
-  }
-  
-  res = CAPE_ERR_NONE;
+  res = adbl_prepare_prepare (self, session, stream, err);
 
-  // --------------
-  exit_and_cleanup:
-  
-  if (stream)
-  {
-    cape_stream_del (&stream);
-  }
-  
-  if (sql_statement)
-  {
-    cape_str_del (&sql_statement);
-  }
+  cape_stream_del (&stream);
   
   return res;
 }
 
 //-----------------------------------------------------------------------------
 
-int adbl_prepare_statement_delete (AdblPrepare self, const char* schema, const char* table, int ansi, CapeErr err)
+int adbl_prepare_statement_delete (AdblPrepare self, AdblPvdSession session, const char* schema, const char* table, int ansi, CapeErr err)
 {
   int res;
   
   CapeStream stream = cape_stream_new ();
-  CapeString sql_statement = NULL;
 
   cape_stream_append_str (stream, "DELETE FROM ");
 
@@ -634,47 +620,20 @@ int adbl_prepare_statement_delete (AdblPrepare self, const char* schema, const c
 
   self->params_used = adbl_prepare_append_where_clause (stream, ansi, self->params, table);
   
-  {
-    number_t sql_size = cape_stream_size (stream);
-    
-    sql_statement = cape_stream_to_str (&stream);
-    
-    cape_log_msg (CAPE_LL_TRACE, "ADBL", "mysql **SQL**", sql_statement);    
-    
-    // prepare the statement 
-    if (mysql_stmt_prepare (self->stmt, sql_statement, sql_size) != 0)
-    {
-      res = cape_err_set (err, CAPE_ERR_3RDPARTY_LIB, mysql_stmt_error (self->stmt));
-      goto exit_and_cleanup;
-    }
-  }
+  res = adbl_prepare_prepare (self, session, stream, err);
   
-  res = CAPE_ERR_NONE;
-  
-  // --------------
-  exit_and_cleanup:
-  
-  if (stream)
-  {
-    cape_stream_del (&stream);
-  }
-  
-  if (sql_statement)
-  {
-    cape_str_del (&sql_statement);
-  }
-  
+  cape_stream_del (&stream);
+
   return res;
 }
 
 //-----------------------------------------------------------------------------
 
-int adbl_prepare_statement_update (AdblPrepare self, const char* schema, const char* table, int ansi, CapeErr err)
+int adbl_prepare_statement_update (AdblPrepare self, AdblPvdSession session, const char* schema, const char* table, int ansi, CapeErr err)
 {
   int res;
   
   CapeStream stream = cape_stream_new ();
-  CapeString sql_statement = NULL;
   
   cape_stream_append_str (stream, "UPDATE ");
   
@@ -686,47 +645,20 @@ int adbl_prepare_statement_update (AdblPrepare self, const char* schema, const c
   
   self->params_used = adbl_prepare_append_where_clause (stream, ansi, self->params, table);
   
-  {
-    number_t sql_size = cape_stream_size (stream);
-    
-    sql_statement = cape_stream_to_str (&stream);
-    
-    cape_log_msg (CAPE_LL_TRACE, "ADBL", "mysql **SQL**", sql_statement);    
-    
-    // prepare the statement 
-    if (mysql_stmt_prepare (self->stmt, sql_statement, sql_size) != 0)
-    {
-      res = cape_err_set (err, CAPE_ERR_3RDPARTY_LIB, mysql_stmt_error (self->stmt));
-      goto exit_and_cleanup;
-    }
-  }
+  res = adbl_prepare_prepare (self, session, stream, err);
   
-  res = CAPE_ERR_NONE;
-  
-  // --------------
-  exit_and_cleanup:
-  
-  if (stream)
-  {
-    cape_stream_del (&stream);
-  }
-  
-  if (sql_statement)
-  {
-    cape_str_del (&sql_statement);
-  }
+  cape_stream_del (&stream);
   
   return res;
 }
 
 //-----------------------------------------------------------------------------
 
-int adbl_prepare_statement_setins (AdblPrepare self, const char* schema, const char* table, int ansi, CapeErr err)
+int adbl_prepare_statement_setins (AdblPrepare self, AdblPvdSession session, const char* schema, const char* table, int ansi, CapeErr err)
 {
   int res;
   
   CapeStream stream = cape_stream_new ();
-  CapeString sql_statement = NULL;
   
   // due we need to consider the params aswell we just the params
   // for the first part and values for the second
@@ -760,36 +692,10 @@ int adbl_prepare_statement_setins (AdblPrepare self, const char* schema, const c
   
   self->columns_used = adbl_pvd_append_update (stream, ansi, self->params, table);
   
-  {
-    number_t sql_size = cape_stream_size (stream);
+  res = adbl_prepare_prepare (self, session, stream, err);
+  
+  cape_stream_del (&stream);
     
-    sql_statement = cape_stream_to_str (&stream);
-    
-    cape_log_msg (CAPE_LL_TRACE, "ADBL", "mysql **SQL**", sql_statement);    
-    
-    // prepare the statement 
-    if (mysql_stmt_prepare (self->stmt, sql_statement, sql_size) != 0)
-    {
-      res = cape_err_set (err, CAPE_ERR_3RDPARTY_LIB, mysql_stmt_error (self->stmt));
-      goto exit_and_cleanup;
-    }
-  }
-  
-  res = CAPE_ERR_NONE;
-  
-  // --------------
-  exit_and_cleanup:
-  
-  if (stream)
-  {
-    cape_stream_del (&stream);
-  }
-  
-  if (sql_statement)
-  {
-    cape_str_del (&sql_statement);
-  }
-  
   return res;  
 }
 

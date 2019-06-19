@@ -50,19 +50,19 @@ __CAPE_LIBEX   int             adbl_prepare_binds_values       (AdblPrepare, Cap
 
 __CAPE_LIBEX   int             adbl_prepare_binds_all          (AdblPrepare, CapeErr err);
 
-__CAPE_LIBEX   number_t        adbl_prepare_execute            (AdblPrepare, MYSQL* mysql, CapeErr err);
+__CAPE_LIBEX   int             adbl_prepare_execute            (AdblPrepare, AdblPvdSession session, CapeErr err);
 
 //-----------------------------------------------------------------------------
 
-__CAPE_LIBEX   int             adbl_prepare_statement_select   (AdblPrepare, const char* schema, const char* table, int ansi, CapeErr err);
+__CAPE_LIBEX   int             adbl_prepare_statement_select   (AdblPrepare, AdblPvdSession session, const char* schema, const char* table, int ansi, CapeErr err);
 
-__CAPE_LIBEX   int             adbl_prepare_statement_insert   (AdblPrepare, const char* schema, const char* table, int ansi, CapeErr err);
+__CAPE_LIBEX   int             adbl_prepare_statement_insert   (AdblPrepare, AdblPvdSession session, const char* schema, const char* table, int ansi, CapeErr err);
 
-__CAPE_LIBEX   int             adbl_prepare_statement_delete   (AdblPrepare, const char* schema, const char* table, int ansi, CapeErr err);
+__CAPE_LIBEX   int             adbl_prepare_statement_delete   (AdblPrepare, AdblPvdSession session, const char* schema, const char* table, int ansi, CapeErr err);
 
-__CAPE_LIBEX   int             adbl_prepare_statement_update   (AdblPrepare, const char* schema, const char* table, int ansi, CapeErr err);
+__CAPE_LIBEX   int             adbl_prepare_statement_update   (AdblPrepare, AdblPvdSession session, const char* schema, const char* table, int ansi, CapeErr err);
 
-__CAPE_LIBEX   int             adbl_prepare_statement_setins   (AdblPrepare, const char* schema, const char* table, int ansi, CapeErr err);
+__CAPE_LIBEX   int             adbl_prepare_statement_setins   (AdblPrepare, AdblPvdSession session, const char* schema, const char* table, int ansi, CapeErr err);
 
 //-----------------------------------------------------------------------------
 

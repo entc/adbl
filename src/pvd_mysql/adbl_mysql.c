@@ -70,14 +70,96 @@ struct AdblPvdSession_s
   
   int ansi_quotes;   // defines if the staments must be quoted
   
+  CapeUdc cp;
+  
 };
+
+//-----------------------------------------------------------------------------
+
+int adbl_pvd_connect (AdblPvdSession self, CapeErr err)
+{
+  int res;
+  
+  // settings
+  mysql_options (self->mysql, MYSQL_OPT_COMPRESS, 0);
+  
+  my_bool reconnect = FALSE;
+  mysql_options (self->mysql, MYSQL_OPT_RECONNECT, &reconnect);
+  
+  // we start with no transaction -> activate autocommit
+  mysql_options (self->mysql, MYSQL_INIT_COMMAND, "SET autocommit=1");
+  
+  // important, otherwise UTF8 is not handled correctly
+  mysql_options (self->mysql, MYSQL_INIT_COMMAND, "SET NAMES UTF8");
+  
+  // connect
+  if (!mysql_real_connect (self->mysql, cape_udc_get_s (self->cp, "host", "127.0.0.1"), cape_udc_get_s (self->cp, "user", "admin"), cape_udc_get_s (self->cp, "pass", "admin"), self->schema, cape_udc_get_n (self->cp, "port", 3306), 0, CLIENT_MULTI_RESULTS))
+  {    
+    res = cape_err_set (err, CAPE_ERR_3RDPARTY_LIB, mysql_error (self->mysql));
+    goto exit_and_cleanup;
+  }
+
+  // find out the ansi variables
+  {
+    MYSQL_RES* mr;
+    
+    mysql_query (self->mysql, "SELECT @@global.sql_mode");
+    mr = mysql_use_result (self->mysql);
+    if(mr)
+    {
+      MYSQL_ROW row;
+      row = mysql_fetch_row (mr);
+      
+      self->ansi_quotes = strstr (row[0], "ANSI_QUOTES" ) != 0;
+      
+      mysql_free_result(mr);
+    }
+  }
+  
+  res = CAPE_ERR_NONE;
+  
+exit_and_cleanup:
+
+  return res;
+}
+
+//-----------------------------------------------------------------------------
+
+int adbl_check_error (AdblPvdSession self, unsigned int error_code, CapeErr err)
+{
+  // log the error code
+  cape_log_fmt (CAPE_LL_ERROR, "ADBL", "mysql error", "ERROR: %i", error_code);
+  
+  switch (error_code)
+  {
+    case 1021:   // HY000: ER_DISK_FULL
+    {
+      // add to fatal system: send some sms or so the responsible person
+      cape_log_msg (CAPE_LL_FATAL, "ADBL", "adbl check error", "disk is full");
+      break;
+    }
+    case 1152:   // 08S01: ER_ABORTING_CONNECTION
+    {
+      int res = adbl_pvd_connect (self, err);
+      if (res)
+      {
+        return res;
+      }
+      else
+      {        
+        return CAPE_ERR_CONTINUE;
+      }
+    }
+  }
+  
+  return CAPE_ERR_3RDPARTY_LIB;
+}
 
 //-----------------------------------------------------------------------------
 
 AdblPvdSession __STDCALL adbl_pvd_open (CapeUdc cp, CapeErr err)
 {
-  MYSQL_RES* res;
-  
+  int res;
   AdblPvdSession self = CAPE_NEW(struct AdblPvdSession_s);
   
   self->ansi_quotes = FALSE;
@@ -86,41 +168,14 @@ AdblPvdSession __STDCALL adbl_pvd_open (CapeUdc cp, CapeErr err)
   self->mysql = mysql_init (NULL);
   
   self->schema = cape_str_cp (cape_udc_get_s (cp, "schema", NULL));
+  self->cp = cape_udc_cp (cp);
   
-  // settings
-  mysql_options (self->mysql, MYSQL_OPT_COMPRESS, 0);
-  
-  my_bool reconnect = TRUE;
-  mysql_options (self->mysql, MYSQL_OPT_RECONNECT, &reconnect);
-  
-  // we start with no transaction -> activate autocommit
-  mysql_options (self->mysql, MYSQL_INIT_COMMAND, "SET autocommit=1");
-
-  // important, otherwise UTF8 is not handled correctly
-  mysql_options (self->mysql, MYSQL_INIT_COMMAND, "SET NAMES UTF8");
-
-  // connect
-  if(!mysql_real_connect (self->mysql, cape_udc_get_s (cp, "host", "127.0.0.1"), cape_udc_get_s (cp, "user", "admin"), cape_udc_get_s (cp, "pass", "admin"), self->schema, cape_udc_get_n (cp, "port", 3306), 0, CLIENT_MULTI_RESULTS))
-  {    
-    cape_err_set (err, CAPE_ERR_3RDPARTY_LIB, mysql_error (self->mysql));
-    
-    //cape_log_msg (LL_ERROR, "ADBL", "mysql", mysql_error (self->conn));
-
+  // the initial connect should work
+  res = adbl_pvd_connect (self, err);
+  if (res)
+  {
     adbl_pvd_close (&self);
     return NULL;
-  }
-  
-  // find out the ansi variables
-  mysql_query (self->mysql, "SELECT @@global.sql_mode");
-  res = mysql_use_result (self->mysql);
-  if(res)
-  {
-    MYSQL_ROW row;
-    row = mysql_fetch_row (res);
-    
-    self->ansi_quotes = strstr (row[0], "ANSI_QUOTES" ) != 0;
-    
-    mysql_free_result(res);
   }
   
   return self;
@@ -186,7 +241,7 @@ number_t __STDCALL adbl_pvd_ins (AdblPvdSession self, const char* table, CapeUdc
   
   AdblPrepare pre = adbl_prepare_new (self->mysql, NULL, p_values);
 
-  res = adbl_prepare_statement_insert (pre, self->schema, table, self->ansi_quotes, err);
+  res = adbl_prepare_statement_insert (pre, self, self->schema, table, self->ansi_quotes, err);
   if (res)
   {
     cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql insert", cape_err_text(err));    
@@ -200,13 +255,18 @@ number_t __STDCALL adbl_pvd_ins (AdblPvdSession self, const char* table, CapeUdc
     goto exit_and_cleanup;
   }
   
-  last_insert_id = adbl_prepare_execute (pre, self->mysql, err);
+  res = adbl_prepare_execute (pre, self, err);
+  if (res)
+  {
+    goto exit_and_cleanup;
+  }
   
-  // --------------
+  // get last inserted id
+  last_insert_id = mysql_insert_id (self->mysql);
+    
 exit_and_cleanup:
   
   adbl_prepare_del (&pre);
-  
   return last_insert_id;
 }
 
@@ -215,11 +275,10 @@ exit_and_cleanup:
 int __STDCALL adbl_pvd_del (AdblPvdSession self, const char* table, CapeUdc* p_params, CapeErr err)
 {
   int res;
-  number_t last_insert_id = 0;
   
   AdblPrepare pre = adbl_prepare_new (self->mysql, p_params, NULL);
   
-  res = adbl_prepare_statement_delete (pre, self->schema, table, self->ansi_quotes, err);
+  res = adbl_prepare_statement_delete (pre, self, self->schema, table, self->ansi_quotes, err);
   if (res)
   {
     cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql delete", cape_err_text(err));    
@@ -233,14 +292,18 @@ int __STDCALL adbl_pvd_del (AdblPvdSession self, const char* table, CapeUdc* p_p
     goto exit_and_cleanup;    
   }
     
-  last_insert_id = adbl_prepare_execute (pre, self->mysql, err);
+  res = adbl_prepare_execute (pre, self, err);
+  if (res)
+  {
+    goto exit_and_cleanup;
+  }
+
+  res = CAPE_ERR_NONE;
   
-// --------------
 exit_and_cleanup:
   
   adbl_prepare_del (&pre);
-  
-  return last_insert_id;
+  return res;
 }
 
 //-----------------------------------------------------------------------------
@@ -248,11 +311,11 @@ exit_and_cleanup:
 int __STDCALL adbl_pvd_set (AdblPvdSession self, const char* table, CapeUdc* p_params, CapeUdc* p_values, CapeErr err)
 {
   int res;
-  number_t last_insert_id = 0;
+  number_t last_insert_id = -1;
   
   AdblPrepare pre = adbl_prepare_new (self->mysql, p_params, p_values);
   
-  res = adbl_prepare_statement_update (pre, self->schema, table, self->ansi_quotes, err);
+  res = adbl_prepare_statement_update (pre, self, self->schema, table, self->ansi_quotes, err);
   if (res)
   {
     cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql set", cape_err_text(err));    
@@ -267,14 +330,18 @@ int __STDCALL adbl_pvd_set (AdblPvdSession self, const char* table, CapeUdc* p_p
     goto exit_and_cleanup;    
   }
   
-  last_insert_id = adbl_prepare_execute (pre, self->mysql, err);
+  res = adbl_prepare_execute (pre, self, err);
+  if (res)
+  {
+    goto exit_and_cleanup;
+  }
   
-// --------------
+  res = CAPE_ERR_NONE;
+  
 exit_and_cleanup:
   
   adbl_prepare_del (&pre);
-  
-  return last_insert_id;  
+  return res;
 }
 
 //-----------------------------------------------------------------------------
@@ -286,7 +353,7 @@ number_t __STDCALL adbl_pvd_ins_or_set (AdblPvdSession self, const char* table, 
 
   AdblPrepare pre = adbl_prepare_new (self->mysql, p_params, p_values);
 
-  res = adbl_prepare_statement_setins (pre, self->schema, table, self->ansi_quotes, err);
+  res = adbl_prepare_statement_setins (pre, self, self->schema, table, self->ansi_quotes, err);
   if (res)
   {
     cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql ins_or_set", cape_err_text(err));
@@ -301,13 +368,18 @@ number_t __STDCALL adbl_pvd_ins_or_set (AdblPvdSession self, const char* table, 
     goto exit_and_cleanup;
   }
 
-  last_insert_id = adbl_prepare_execute (pre, self->mysql, err);
+  res = adbl_prepare_execute (pre, self, err);
+  if (res)
+  {
+    goto exit_and_cleanup;
+  }
   
-  // --------------
+  // get last inserted id
+  last_insert_id = mysql_insert_id (self->mysql);
+  
 exit_and_cleanup:
   
   adbl_prepare_del (&pre);
-  
   return last_insert_id;
 }
 
@@ -361,7 +433,7 @@ AdblPvdCursor __STDCALL adbl_pvd_cursor_new (AdblPvdSession session, const char*
 
   AdblPrepare pre = adbl_prepare_new (session->mysql, p_params, p_values);
   
-  res = adbl_prepare_statement_select (pre, session->schema, table, session->ansi_quotes, err);
+  res = adbl_prepare_statement_select (pre, session, session->schema, table, session->ansi_quotes, err);
   if (res)
   {
     goto exit_and_cleanup;
@@ -379,8 +451,8 @@ AdblPvdCursor __STDCALL adbl_pvd_cursor_new (AdblPvdSession session, const char*
     goto exit_and_cleanup;
   }
   
-  adbl_prepare_execute (pre, session->mysql, err);
-  if (cape_err_code(err))
+  res = adbl_prepare_execute (pre, session, err);
+  if (res)
   {
     goto exit_and_cleanup;    
   }
@@ -391,7 +463,6 @@ AdblPvdCursor __STDCALL adbl_pvd_cursor_new (AdblPvdSession session, const char*
 exit_and_cleanup:
   
   adbl_prepare_del (&pre);
-  
   return NULL;
 }
 

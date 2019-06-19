@@ -60,6 +60,10 @@ __CAPE_LIBEX   int             __STDCALL adbl_pvd_cursor_next       (AdblPvdCurs
 
 __CAPE_LIBEX   CapeUdc         __STDCALL adbl_pvd_cursor_get        (AdblPvdCursor);
 
+//-----------------------------------------------------------------------------
+
+__CAPE_LIBEX   int                       adbl_check_error           (AdblPvdSession, unsigned int error_code, CapeErr err);
+
 //=============================================================================
 
 #endif
