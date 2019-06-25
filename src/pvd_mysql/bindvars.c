@@ -4,6 +4,8 @@
 #include <fmt/cape_json.h>
 #include <sys/cape_log.h>
 
+#define ADBL_BIND_BUFFER_SIZE 4000
+
 //-----------------------------------------------------------------------------
 
 struct AdblBindVars_s
@@ -180,10 +182,10 @@ void adbl_bind_add (MYSQL_BIND* bind, CapeUdc item)
     {
       bind->buffer_type = MYSQL_TYPE_STRING;
       
-      bind->buffer = CAPE_ALLOC(1024);
-      memset (bind->buffer, 0, 1024);
+      bind->buffer = CAPE_ALLOC(ADBL_BIND_BUFFER_SIZE);
+      memset (bind->buffer, 0, ADBL_BIND_BUFFER_SIZE);
       
-      bind->buffer_length = 1024;
+      bind->buffer_length = ADBL_BIND_BUFFER_SIZE;
       bind->is_null = CAPE_ALLOC(sizeof(my_bool));
       bind->length = 0;
       bind->error = 0;
@@ -256,10 +258,10 @@ void adbl_bind_add (MYSQL_BIND* bind, CapeUdc item)
     {
       bind->buffer_type = MYSQL_TYPE_STRING;
       
-      bind->buffer = CAPE_ALLOC(2048);
-      memset (bind->buffer, 0, 2048);
+      bind->buffer = CAPE_ALLOC(ADBL_BIND_BUFFER_SIZE);
+      memset (bind->buffer, 0, ADBL_BIND_BUFFER_SIZE);
       
-      bind->buffer_length = 2048;
+      bind->buffer_length = ADBL_BIND_BUFFER_SIZE;
       bind->is_null = CAPE_ALLOC(sizeof(my_bool));
       bind->length = 0;
       bind->error = 0;
