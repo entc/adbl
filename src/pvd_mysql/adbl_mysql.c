@@ -94,8 +94,8 @@ int adbl_pvd_connect (AdblPvdSession self, CapeErr err)
   
   // connect
   if (!mysql_real_connect (self->mysql, cape_udc_get_s (self->cp, "host", "127.0.0.1"), cape_udc_get_s (self->cp, "user", "admin"), cape_udc_get_s (self->cp, "pass", "admin"), self->schema, cape_udc_get_n (self->cp, "port", 3306), 0, CLIENT_MULTI_RESULTS))
-  {    
-    res = cape_err_set (err, CAPE_ERR_3RDPARTY_LIB, mysql_error (self->mysql));
+  {
+    res = cape_err_set_fmt (err, CAPE_ERR_3RDPARTY_LIB, "%s: %s", mysql_sqlstate (self->mysql), mysql_error (self->mysql));
     goto exit_and_cleanup;
   }
 
@@ -141,9 +141,12 @@ int adbl_check_error (AdblPvdSession self, unsigned int error_code, CapeErr err)
     case 1152:   // 08S01: ER_ABORTING_CONNECTION
     case 2006:   // HY000: MySQL server has gone away
     {
+      cape_log_fmt (CAPE_LL_TRACE, "ADBL", "mysql error", "server went away -> try to reconnect");
+
       int res = adbl_pvd_connect (self, err);
       if (res)
       {
+        cape_log_fmt (CAPE_LL_ERROR, "ADBL", "mysql error", "can't reconnect: %s", cape_err_text (err));
         return res;
       }
       else
@@ -312,8 +315,6 @@ exit_and_cleanup:
 int __STDCALL adbl_pvd_set (AdblPvdSession self, const char* table, CapeUdc* p_params, CapeUdc* p_values, CapeErr err)
 {
   int res;
-  number_t last_insert_id = -1;
-  
   AdblPrepare pre = adbl_prepare_new (self->mysql, p_params, p_values);
   
   res = adbl_prepare_statement_update (pre, self, self->schema, table, self->ansi_quotes, err);
@@ -471,7 +472,6 @@ exit_and_cleanup:
 
 void __STDCALL adbl_pvd_cursor_del (AdblPvdCursor* p_self)
 {
-  int i;
   AdblPvdCursor self = *p_self;
 
   mysql_stmt_free_result (self->stmt);
