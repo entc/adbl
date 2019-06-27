@@ -76,6 +76,21 @@ struct AdblPvdSession_s
 
 //-----------------------------------------------------------------------------
 
+int adbl_pvd__error (AdblPvdSession self, CapeErr err)
+{
+  unsigned int error_code = mysql_errno (self->mysql);
+  if (error_code)
+  {
+    return cape_err_set_fmt (err, CAPE_ERR_3RDPARTY_LIB, "%i (%s): %s", error_code, mysql_sqlstate (self->mysql), mysql_error (self->mysql));
+  }
+  else
+  {
+    return CAPE_ERR_NONE;
+  }
+}
+
+//-----------------------------------------------------------------------------
+
 int adbl_pvd_connect (AdblPvdSession self, CapeErr err)
 {
   int res;
@@ -93,9 +108,9 @@ int adbl_pvd_connect (AdblPvdSession self, CapeErr err)
   mysql_options (self->mysql, MYSQL_INIT_COMMAND, "SET NAMES UTF8");
   
   // connect
-  if (!mysql_real_connect (self->mysql, cape_udc_get_s (self->cp, "host", "127.0.0.1"), cape_udc_get_s (self->cp, "user", "admin"), cape_udc_get_s (self->cp, "pass", "admin"), self->schema, cape_udc_get_n (self->cp, "port", 3306), 0, CLIENT_MULTI_RESULTS))
+  if (mysql_real_connect (self->mysql, cape_udc_get_s (self->cp, "host", "127.0.0.1"), cape_udc_get_s (self->cp, "user", "admin"), cape_udc_get_s (self->cp, "pass", "admin"), self->schema, cape_udc_get_n (self->cp, "port", 3306), 0, CLIENT_MULTI_RESULTS) != self->mysql)
   {
-    res = cape_err_set_fmt (err, CAPE_ERR_3RDPARTY_LIB, "%s: %s", mysql_sqlstate (self->mysql), mysql_error (self->mysql));
+    res = adbl_pvd__error (self, err);
     goto exit_and_cleanup;
   }
 
@@ -141,9 +156,18 @@ int adbl_check_error (AdblPvdSession self, unsigned int error_code, CapeErr err)
     case 1152:   // 08S01: ER_ABORTING_CONNECTION
     case 2006:   // HY000: MySQL server has gone away
     {
+      int res;
+      
       cape_log_fmt (CAPE_LL_TRACE, "ADBL", "mysql error", "server went away -> try to reconnect");
 
-      int res = adbl_pvd_connect (self, err);
+      // disconnect
+      mysql_close (self->mysql);
+
+      // re-initialize the mysql handle
+      self->mysql = mysql_init (NULL);
+
+      // try to connect
+      res = adbl_pvd_connect (self, err);
       if (res)
       {
         cape_log_fmt (CAPE_LL_ERROR, "ADBL", "mysql error", "can't reconnect: %s", cape_err_text (err));
@@ -391,12 +415,7 @@ int __STDCALL adbl_pvd_begin (AdblPvdSession self, CapeErr err)
 {
   mysql_query (self->mysql, "START TRANSACTION");
   
-  if (mysql_errno (self->mysql))
-  {
-    return cape_err_set (err, CAPE_ERR_3RDPARTY_LIB, mysql_error (self->mysql));
-  }
-  
-  return CAPE_ERR_NONE;
+  return adbl_pvd__error (self, err);
 }
 
 //-----------------------------------------------------------------------------
@@ -405,12 +424,7 @@ int __STDCALL adbl_pvd_commit (AdblPvdSession self, CapeErr err)
 {
   mysql_query (self->mysql, "COMMIT");
   
-  if (mysql_errno (self->mysql))
-  {
-    return cape_err_set (err, CAPE_ERR_3RDPARTY_LIB, mysql_error (self->mysql));
-  }
-  
-  return CAPE_ERR_NONE;
+  return adbl_pvd__error (self, err);
 }
 
 //-----------------------------------------------------------------------------
@@ -419,12 +433,7 @@ int __STDCALL adbl_pvd_rollback (AdblPvdSession self, CapeErr err)
 {
   mysql_query (self->mysql, "ROLLBACK");
   
-  if (mysql_errno (self->mysql))
-  {
-    return cape_err_set (err, CAPE_ERR_3RDPARTY_LIB, mysql_error (self->mysql));
-  }
-  
-  return CAPE_ERR_NONE;
+  return adbl_pvd__error (self, err);
 }
 
 //-----------------------------------------------------------------------------

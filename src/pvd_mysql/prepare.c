@@ -195,7 +195,7 @@ int adbl_prepare_binds_params (AdblPrepare self, CapeErr err)
     // try to bind all constraint values
     if (mysql_stmt_bind_param (self->stmt, adbl_bindvars_binds(self->bindsParams)) != 0)
     {
-      return cape_err_set_fmt (err, CAPE_ERR_3RDPARTY_LIB, "%s: %s", mysql_stmt_sqlstate (self->stmt), mysql_stmt_error (self->stmt));
+      return cape_err_set_fmt (err, CAPE_ERR_3RDPARTY_LIB, "%i (%s): %s", mysql_stmt_errno (self->stmt), mysql_stmt_sqlstate (self->stmt), mysql_stmt_error (self->stmt));
     }
   }
   
@@ -223,7 +223,7 @@ int adbl_prepare_binds_values (AdblPrepare self, CapeErr err)
     // try to bind all constraint values
     if (mysql_stmt_bind_param (self->stmt, adbl_bindvars_binds(self->bindsValues)) != 0)
     {
-      return cape_err_set_fmt (err, CAPE_ERR_3RDPARTY_LIB, "%s: %s", mysql_stmt_sqlstate (self->stmt), mysql_stmt_error (self->stmt));
+      return cape_err_set_fmt (err, CAPE_ERR_3RDPARTY_LIB, "%i (%s): %s", mysql_stmt_errno (self->stmt), mysql_stmt_sqlstate (self->stmt), mysql_stmt_error (self->stmt));
     }
   }
   
@@ -248,7 +248,7 @@ int adbl_prepare_binds_result (AdblPrepare self, CapeErr err)
   // try to bind result
   if (mysql_stmt_bind_result (self->stmt, adbl_bindvars_binds(self->bindsValues)) != 0)
   {
-    return cape_err_set_fmt (err, CAPE_ERR_3RDPARTY_LIB, "%s: %s", mysql_stmt_sqlstate (self->stmt), mysql_stmt_error (self->stmt));
+    return cape_err_set_fmt (err, CAPE_ERR_3RDPARTY_LIB, "%i (%s): %s", mysql_stmt_errno (self->stmt), mysql_stmt_sqlstate (self->stmt), mysql_stmt_error (self->stmt));
   }
   
   return CAPE_ERR_NONE;
@@ -285,7 +285,7 @@ int adbl_prepare_binds_all (AdblPrepare self, CapeErr err)
   // try to bind result
   if (mysql_stmt_bind_param (self->stmt, adbl_bindvars_binds(self->bindsValues)) != 0)
   {
-    return cape_err_set_fmt (err, CAPE_ERR_3RDPARTY_LIB, "%s: %s", mysql_stmt_sqlstate (self->stmt), mysql_stmt_error (self->stmt));
+    return cape_err_set_fmt (err, CAPE_ERR_3RDPARTY_LIB, "%i (%s): %s", mysql_stmt_errno (self->stmt), mysql_stmt_sqlstate (self->stmt), mysql_stmt_error (self->stmt));
   }
   
   return CAPE_ERR_NONE;  
@@ -302,14 +302,16 @@ int adbl_prepare_execute (AdblPrepare self, AdblPvdSession session, CapeErr err)
     // execute
     if (mysql_stmt_execute (self->stmt) != 0)
     {
+      unsigned int error_code = mysql_stmt_errno (self->stmt);
+
       // try to figure out if the error was serious
-      int res = adbl_check_error (session, mysql_stmt_errno (self->stmt), err);
+      int res = adbl_check_error (session, error_code, err);
       if (res == CAPE_ERR_CONTINUE)
       {
         continue;   // statement went wrong, but there is hope to make it right again
       }
 
-      return cape_err_set_fmt (err, CAPE_ERR_3RDPARTY_LIB, "%s: %s", mysql_stmt_sqlstate (self->stmt), mysql_stmt_error (self->stmt));
+      return cape_err_set_fmt (err, CAPE_ERR_3RDPARTY_LIB, "%i (%s): %s", error_code, mysql_stmt_sqlstate (self->stmt), mysql_stmt_error (self->stmt));
     }
     else
     {
@@ -319,7 +321,7 @@ int adbl_prepare_execute (AdblPrepare self, AdblPvdSession session, CapeErr err)
   
   if (mysql_stmt_store_result (self->stmt) != 0)
   {
-    return cape_err_set_fmt (err, CAPE_ERR_3RDPARTY_LIB, "%s: %s", mysql_stmt_sqlstate (self->stmt), mysql_stmt_error (self->stmt));
+    return cape_err_set_fmt (err, CAPE_ERR_3RDPARTY_LIB, "%i (%s): %s", mysql_stmt_errno (self->stmt), mysql_stmt_sqlstate (self->stmt), mysql_stmt_error (self->stmt));
   }
   
   return CAPE_ERR_NONE;
@@ -338,14 +340,16 @@ int adbl_prepare_prepare (AdblPrepare self, AdblPvdSession session, CapeStream s
     // execute
     if (mysql_stmt_prepare (self->stmt, cape_stream_get (stream), cape_stream_size (stream)) != 0)
     {
+      unsigned int error_code = mysql_stmt_errno (self->stmt);
+
       // try to figure out if the error was serious
-      int res = adbl_check_error (session, mysql_stmt_errno (self->stmt), err);
+      int res = adbl_check_error (session, error_code, err);
       if (res == CAPE_ERR_CONTINUE)
       {
         continue;   // statement went wrong, but there is hope to make it right again
       }
       
-      return cape_err_set_fmt (err, CAPE_ERR_3RDPARTY_LIB, "%s: %s", mysql_stmt_sqlstate (self->stmt), mysql_stmt_error (self->stmt));
+      return cape_err_set_fmt (err, CAPE_ERR_3RDPARTY_LIB, "%i (%s): %s", error_code, mysql_stmt_sqlstate (self->stmt), mysql_stmt_error (self->stmt));
     }
     else
     {
