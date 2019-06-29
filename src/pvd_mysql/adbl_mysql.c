@@ -7,6 +7,9 @@
 #include "sys/cape_types.h"
 #include "stc/cape_stream.h"
 #include "sys/cape_log.h"
+#include "fmt/cape_json.h"
+
+#include <stdio.h>
 
 //-----------------------------------------------------------------------------
 
@@ -107,13 +110,26 @@ int adbl_pvd_connect (AdblPvdSession self, CapeErr err)
   // important, otherwise UTF8 is not handled correctly
   mysql_options (self->mysql, MYSQL_INIT_COMMAND, "SET NAMES UTF8");
   
-  // connect
-  if (mysql_real_connect (self->mysql, cape_udc_get_s (self->cp, "host", "127.0.0.1"), cape_udc_get_s (self->cp, "user", "admin"), cape_udc_get_s (self->cp, "pass", "admin"), self->schema, cape_udc_get_n (self->cp, "port", 3306), 0, CLIENT_MULTI_RESULTS) != self->mysql)
   {
-    res = adbl_pvd__error (self, err);
-    goto exit_and_cleanup;
-  }
+    const CapeString host = cape_udc_get_s (self->cp, "host", "127.0.0.1");
+    const CapeString user = cape_udc_get_s (self->cp, "user", "admin");
+    const CapeString pass = cape_udc_get_s (self->cp, "pass", "admin");
+    number_t port = cape_udc_get_n (self->cp, "port", 3306);
+    
+    cape_log_fmt (CAPE_LL_TRACE, "ADBL", "connect [host]: ", "'%s'", host);
+    cape_log_fmt (CAPE_LL_TRACE, "ADBL", "connect [port]: ", "'%i'", port);
+    cape_log_fmt (CAPE_LL_TRACE, "ADBL", "connect [user]: ", "'%s'", user);
+    cape_log_fmt (CAPE_LL_TRACE, "ADBL", "connect [pass]: ", "'%s'", pass);
+    cape_log_fmt (CAPE_LL_TRACE, "ADBL", "connect [dbas]: ", "'%s'", self->schema);
 
+    // connect
+    if (mysql_real_connect (self->mysql, host, user, pass, self->schema, port, 0, CLIENT_MULTI_RESULTS) != self->mysql)
+    {
+      res = adbl_pvd__error (self, err);
+      goto exit_and_cleanup;
+    }
+  }
+  
   // find out the ansi variables
   {
     MYSQL_RES* mr;
@@ -163,6 +179,9 @@ int adbl_check_error (AdblPvdSession self, unsigned int error_code, CapeErr err)
       // disconnect
       mysql_close (self->mysql);
 
+      // wipe out everything
+      memset (self->mysql, 0x0, sizeof(MYSQL));
+      
       // re-initialize the mysql handle
       self->mysql = mysql_init (NULL);
 
@@ -218,13 +237,11 @@ void __STDCALL adbl_pvd_close (AdblPvdSession* p_self)
   cape_log_msg (CAPE_LL_DEBUG, "ADBL", "mysql", "session closed");
   
   cape_str_del (&(self->schema));
+  cape_udc_del (&(self->cp));
   
   mysql_close (self->mysql);
   
   CAPE_DEL(p_self, struct AdblPvdSession_s);
-  
-  // call this after mysql_close
-  //adbl_mysql_done ();
 }
 
 //-----------------------------------------------------------------------------
