@@ -164,7 +164,7 @@ int adbl_prepare_execute (const CapeString statement, sqlite3* handle, CapeErr e
 
 int adbl_prepare_prepare (AdblPrepare self, sqlite3* handle, CapeErr err)
 {
-  if (sqlite3_prepare_v3 (handle, cape_stream_get (self->stream), cape_stream_size (self->stream), 0, &(self->stmt), NULL) == SQLITE_OK)
+  if (sqlite3_prepare_v2 (handle, cape_stream_get (self->stream), cape_stream_size (self->stream), &(self->stmt), NULL) == SQLITE_OK)
   {
     return CAPE_ERR_NONE;
   }
