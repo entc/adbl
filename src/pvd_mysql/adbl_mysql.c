@@ -171,6 +171,7 @@ int adbl_check_error (AdblPvdSession self, unsigned int error_code, CapeErr err)
     }
     case 1152:   // 08S01: ER_ABORTING_CONNECTION
     case 2006:   // HY000: MySQL server has gone away
+    case 2013:   // HY000: Lost connection to MySQL server during query
     {
       int res;
       
