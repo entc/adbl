@@ -186,6 +186,9 @@ int adbl_check_error (AdblPvdSession self, unsigned int error_code, CapeErr err)
       // re-initialize the mysql handle
       self->mysql = mysql_init (NULL);
 
+      // clear error log
+      cape_err_clr (err);
+      
       // try to connect
       res = adbl_pvd_connect (self, err);
       if (res)
