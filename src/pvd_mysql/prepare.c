@@ -29,12 +29,11 @@ struct AdblPrepare_s
 
 //-----------------------------------------------------------------------------
 
-AdblPrepare adbl_prepare_new (MYSQL* mysql, CapeUdc* p_params, CapeUdc* p_values)
+AdblPrepare adbl_prepare_new (CapeUdc* p_params, CapeUdc* p_values)
 {
   AdblPrepare self = CAPE_NEW(struct AdblPrepare_s);
   
-  self->stmt = mysql_stmt_init (mysql);
-  
+  self->stmt = NULL;  
   self->values = NULL;
   self->params = NULL;
   
@@ -111,6 +110,32 @@ AdblPrepare adbl_prepare_new (MYSQL* mysql, CapeUdc* p_params, CapeUdc* p_values
   self->bindsParams = NULL;
   
   return self;
+}
+
+//-----------------------------------------------------------------------------
+
+int adbl_prepare_init (AdblPrepare self, AdblPvdSession session, MYSQL* mysql, CapeErr err)
+{
+  if (self->stmt)
+  {
+    // cleanup results
+    mysql_stmt_free_result (self->stmt);
+    
+    // close old statement
+    mysql_stmt_close (self->stmt);
+  }
+  
+  self->stmt = mysql_stmt_init (mysql);
+  if (self->stmt == NULL)
+  {
+    // gather error code
+    unsigned int error_code = mysql_stmt_errno (self->stmt);
+
+    // use session error handling
+    return adbl_check_error (session, error_code, err);
+  }
+  
+  return CAPE_ERR_NONE;
 }
 
 //-----------------------------------------------------------------------------
@@ -295,32 +320,34 @@ int adbl_prepare_binds_all (AdblPrepare self, CapeErr err)
 
 int adbl_prepare_execute (AdblPrepare self, AdblPvdSession session, CapeErr err)
 {
-  int i;
+  int res;
   
-  for (i = 0; i < 5; i++)
+  // execute
+  if (mysql_stmt_execute (self->stmt) != 0)
   {
-    // execute
-    if (mysql_stmt_execute (self->stmt) != 0)
+    unsigned int error_code = mysql_stmt_errno (self->stmt);
+    
+    // try to figure out if the error was serious
+    res = adbl_check_error (session, error_code, err);
+    if (res == CAPE_ERR_CONTINUE)
     {
-      unsigned int error_code = mysql_stmt_errno (self->stmt);
-
-      // try to figure out if the error was serious
-      int res = adbl_check_error (session, error_code, err);
-      if (res == CAPE_ERR_CONTINUE)
-      {
-        continue;   // statement went wrong, but there is hope to make it right again
-      }
-
-      return cape_err_set_fmt (err, CAPE_ERR_3RDPARTY_LIB, "%i (%s): %s", error_code, mysql_stmt_sqlstate (self->stmt), mysql_stmt_error (self->stmt));
+      return CAPE_ERR_CONTINUE;   // statement went wrong, but there is hope to make it right again
     }
-    else
-    {
-      break;        // statement was succesfull executed
-    }
+    
+    return cape_err_set_fmt (err, CAPE_ERR_3RDPARTY_LIB, "%i (%s): %s", error_code, mysql_stmt_sqlstate (self->stmt), mysql_stmt_error (self->stmt));
   }
   
   if (mysql_stmt_store_result (self->stmt) != 0)
   {
+    unsigned int error_code = mysql_stmt_errno (self->stmt);
+    
+    // try to figure out if the error was serious
+    res = adbl_check_error (session, error_code, err);
+    if (res == CAPE_ERR_CONTINUE)
+    {
+      return CAPE_ERR_CONTINUE;   // statement went wrong, but there is hope to make it right again
+    }
+    
     return cape_err_set_fmt (err, CAPE_ERR_3RDPARTY_LIB, "%i (%s): %s", mysql_stmt_errno (self->stmt), mysql_stmt_sqlstate (self->stmt), mysql_stmt_error (self->stmt));
   }
   
@@ -331,30 +358,21 @@ int adbl_prepare_execute (AdblPrepare self, AdblPvdSession session, CapeErr err)
 
 int adbl_prepare_prepare (AdblPrepare self, AdblPvdSession session, CapeStream stream, CapeErr err)
 {
-  int i;
-  
   cape_log_msg (CAPE_LL_TRACE, "ADBL", "mysql **SQL**", cape_stream_get (stream));    
 
-  for (i = 0; i < 5; i++)
+  // execute
+  if (mysql_stmt_prepare (self->stmt, cape_stream_get (stream), cape_stream_size (stream)) != 0)
   {
-    // execute
-    if (mysql_stmt_prepare (self->stmt, cape_stream_get (stream), cape_stream_size (stream)) != 0)
+    unsigned int error_code = mysql_stmt_errno (self->stmt);
+    
+    // try to figure out if the error was serious
+    int res = adbl_check_error (session, error_code, err);
+    if (res == CAPE_ERR_CONTINUE)
     {
-      unsigned int error_code = mysql_stmt_errno (self->stmt);
-
-      // try to figure out if the error was serious
-      int res = adbl_check_error (session, error_code, err);
-      if (res == CAPE_ERR_CONTINUE)
-      {
-        continue;   // statement went wrong, but there is hope to make it right again
-      }
-      
-      return cape_err_set_fmt (err, CAPE_ERR_3RDPARTY_LIB, "%i (%s): %s", error_code, mysql_stmt_sqlstate (self->stmt), mysql_stmt_error (self->stmt));
+      return CAPE_ERR_CONTINUE;   // statement went wrong, but there is hope to make it right again
     }
-    else
-    {
-      break;        // statement was succesfull prepared
-    }
+    
+    return cape_err_set_fmt (err, CAPE_ERR_3RDPARTY_LIB, "%i (%s): %s", error_code, mysql_stmt_sqlstate (self->stmt), mysql_stmt_error (self->stmt));
   }
 
   return CAPE_ERR_NONE;

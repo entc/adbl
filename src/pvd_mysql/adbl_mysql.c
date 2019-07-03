@@ -75,6 +75,7 @@ struct AdblPvdSession_s
   
   CapeUdc cp;
   
+  int max_retries;
 };
 
 //-----------------------------------------------------------------------------
@@ -209,6 +210,8 @@ AdblPvdSession __STDCALL adbl_pvd_open (CapeUdc cp, CapeErr err)
   int res;
   AdblPvdSession self = CAPE_NEW(struct AdblPvdSession_s);
   
+  self->max_retries = 5;
+  
   self->ansi_quotes = FALSE;
   
   // init mysql
@@ -282,30 +285,60 @@ CapeUdc __STDCALL adbl_pvd_get (AdblPvdSession self, const char* table, CapeUdc*
 number_t __STDCALL adbl_pvd_ins (AdblPvdSession self, const char* table, CapeUdc* p_values, CapeErr err)
 {
   int res;
-  number_t last_insert_id = 0;
+  number_t last_insert_id = 0;  
   
-  AdblPrepare pre = adbl_prepare_new (self->mysql, NULL, p_values);
+  AdblPrepare pre = adbl_prepare_new (NULL, p_values);
 
-  res = adbl_prepare_statement_insert (pre, self, self->schema, table, self->ansi_quotes, err);
-  if (res)
+  // run the procedure
   {
-    cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql insert", cape_err_text(err));    
-    goto exit_and_cleanup;
+    int i;
+    for (i = 0; i < self->max_retries; i++)
+    {
+      res = adbl_prepare_init (pre, self, self->mysql, err);
+      if (res)
+      {
+        if (res == CAPE_ERR_CONTINUE)
+        {
+          continue;
+        }
+        
+        cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql insert", cape_err_text(err));    
+        goto exit_and_cleanup;
+      }
+      
+      res = adbl_prepare_statement_insert (pre, self, self->schema, table, self->ansi_quotes, err);
+      if (res)
+      {
+        cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql insert", cape_err_text(err));    
+        goto exit_and_cleanup;
+      }
+      
+      res = adbl_prepare_binds_values (pre, err);
+      if (res)
+      {
+        if (res == CAPE_ERR_CONTINUE)
+        {
+          continue;
+        }
+        
+        cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql insert", cape_err_text(err));    
+        goto exit_and_cleanup;
+      }
+      
+      res = adbl_prepare_execute (pre, self, err);
+      if (res)
+      {
+        if (res == CAPE_ERR_CONTINUE)
+        {
+          continue;
+        }
+        
+        goto exit_and_cleanup;
+      }
+    }
   }
-  
-  res = adbl_prepare_binds_values (pre, err);
-  if (res)
-  {
-    cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql insert", cape_err_text(err));    
-    goto exit_and_cleanup;
-  }
-  
-  res = adbl_prepare_execute (pre, self, err);
-  if (res)
-  {
-    goto exit_and_cleanup;
-  }
-  
+
+
   // get last inserted id
   last_insert_id = mysql_insert_id (self->mysql);
     
@@ -321,28 +354,57 @@ int __STDCALL adbl_pvd_del (AdblPvdSession self, const char* table, CapeUdc* p_p
 {
   int res;
   
-  AdblPrepare pre = adbl_prepare_new (self->mysql, p_params, NULL);
+  AdblPrepare pre = adbl_prepare_new (p_params, NULL);
   
-  res = adbl_prepare_statement_delete (pre, self, self->schema, table, self->ansi_quotes, err);
-  if (res)
+  // run the procedure
   {
-    cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql delete", cape_err_text(err));    
-    goto exit_and_cleanup;
+    int i;
+    for (i = 0; i < self->max_retries; i++)
+    {
+      res = adbl_prepare_init (pre, self, self->mysql, err);
+      if (res)
+      {
+        if (res == CAPE_ERR_CONTINUE)
+        {
+          continue;
+        }
+        
+        cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql insert", cape_err_text(err));    
+        goto exit_and_cleanup;
+      }
+      
+      res = adbl_prepare_statement_delete (pre, self, self->schema, table, self->ansi_quotes, err);
+      if (res)
+      {
+        cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql delete", cape_err_text(err));    
+        goto exit_and_cleanup;
+      }
+      
+      res = adbl_prepare_binds_params (pre, err);
+      if (res)
+      {
+        if (res == CAPE_ERR_CONTINUE)
+        {
+          continue;
+        }
+        
+        cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql delete", cape_err_text(err));    
+        goto exit_and_cleanup;    
+      }
+      
+      res = adbl_prepare_execute (pre, self, err);
+      if (res)
+      {
+        if (res == CAPE_ERR_CONTINUE)
+        {
+          continue;
+        }
+        
+        goto exit_and_cleanup;
+      }
+    }
   }
   
-  res = adbl_prepare_binds_params (pre, err);
-  if (res)
-  {
-    cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql delete", cape_err_text(err));    
-    goto exit_and_cleanup;    
-  }
-    
-  res = adbl_prepare_execute (pre, self, err);
-  if (res)
-  {
-    goto exit_and_cleanup;
-  }
-
   res = CAPE_ERR_NONE;
   
 exit_and_cleanup:
@@ -356,29 +418,58 @@ exit_and_cleanup:
 int __STDCALL adbl_pvd_set (AdblPvdSession self, const char* table, CapeUdc* p_params, CapeUdc* p_values, CapeErr err)
 {
   int res;
-  AdblPrepare pre = adbl_prepare_new (self->mysql, p_params, p_values);
+  AdblPrepare pre = adbl_prepare_new (p_params, p_values);
   
-  res = adbl_prepare_statement_update (pre, self, self->schema, table, self->ansi_quotes, err);
-  if (res)
+  // run the procedure
   {
-    cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql set", cape_err_text(err));    
-    goto exit_and_cleanup;
+    int i;
+    for (i = 0; i < self->max_retries; i++)
+    {
+      res = adbl_prepare_init (pre, self, self->mysql, err);
+      if (res)
+      {
+        if (res == CAPE_ERR_CONTINUE)
+        {
+          continue;
+        }
+        
+        cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql insert", cape_err_text(err));    
+        goto exit_and_cleanup;
+      }
+      
+      res = adbl_prepare_statement_update (pre, self, self->schema, table, self->ansi_quotes, err);
+      if (res)
+      {
+        cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql set", cape_err_text(err));    
+        goto exit_and_cleanup;
+      }
+      
+      // all binds are done as parameter
+      res = adbl_prepare_binds_all (pre, err);
+      if (res)
+      {
+        if (res == CAPE_ERR_CONTINUE)
+        {
+          continue;
+        }
+        
+        cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql set", cape_err_text(err));    
+        goto exit_and_cleanup;    
+      }
+      
+      res = adbl_prepare_execute (pre, self, err);
+      if (res)
+      {
+        if (res == CAPE_ERR_CONTINUE)
+        {
+          continue;
+        }
+        
+        goto exit_and_cleanup;
+      }
+    }
   }
-  
-  // all binds are done as parameter
-  res = adbl_prepare_binds_all (pre, err);
-  if (res)
-  {
-    cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql set", cape_err_text(err));    
-    goto exit_and_cleanup;    
-  }
-  
-  res = adbl_prepare_execute (pre, self, err);
-  if (res)
-  {
-    goto exit_and_cleanup;
-  }
-  
+    
   res = CAPE_ERR_NONE;
   
 exit_and_cleanup:
@@ -394,27 +485,56 @@ number_t __STDCALL adbl_pvd_ins_or_set (AdblPvdSession self, const char* table, 
   int res;
   number_t last_insert_id = 0;
 
-  AdblPrepare pre = adbl_prepare_new (self->mysql, p_params, p_values);
+  AdblPrepare pre = adbl_prepare_new (p_params, p_values);
 
-  res = adbl_prepare_statement_setins (pre, self, self->schema, table, self->ansi_quotes, err);
-  if (res)
+  // run the procedure
   {
-    cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql ins_or_set", cape_err_text(err));
-    goto exit_and_cleanup;
-  }
+    int i;
+    for (i = 0; i < self->max_retries; i++)
+    {
+      res = adbl_prepare_init (pre, self, self->mysql, err);
+      if (res)
+      {
+        if (res == CAPE_ERR_CONTINUE)
+        {
+          continue;
+        }
+        
+        cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql insert", cape_err_text(err));    
+        goto exit_and_cleanup;
+      }
 
-  // all binds are done as parameter
-  res = adbl_prepare_binds_all (pre, err);
-  if (res)
-  {
-    cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql ins_or_set", cape_err_text(err));
-    goto exit_and_cleanup;
-  }
-
-  res = adbl_prepare_execute (pre, self, err);
-  if (res)
-  {
-    goto exit_and_cleanup;
+      res = adbl_prepare_statement_setins (pre, self, self->schema, table, self->ansi_quotes, err);
+      if (res)
+      {
+        cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql ins_or_set", cape_err_text(err));
+        goto exit_and_cleanup;
+      }
+      
+      // all binds are done as parameter
+      res = adbl_prepare_binds_all (pre, err);
+      if (res)
+      {
+        if (res == CAPE_ERR_CONTINUE)
+        {
+          continue;
+        }
+        
+        cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql ins_or_set", cape_err_text(err));
+        goto exit_and_cleanup;
+      }
+      
+      res = adbl_prepare_execute (pre, self, err);
+      if (res)
+      {
+        if (res == CAPE_ERR_CONTINUE)
+        {
+          continue;
+        }
+        
+        goto exit_and_cleanup;
+      }
+    }
   }
   
   // get last inserted id
@@ -455,34 +575,68 @@ int __STDCALL adbl_pvd_rollback (AdblPvdSession self, CapeErr err)
 
 //-----------------------------------------------------------------------------
 
-AdblPvdCursor __STDCALL adbl_pvd_cursor_new (AdblPvdSession session, const char* table, CapeUdc* p_params, CapeUdc* p_values, CapeErr err)
+AdblPvdCursor __STDCALL adbl_pvd_cursor_new (AdblPvdSession self, const char* table, CapeUdc* p_params, CapeUdc* p_values, CapeErr err)
 {
   int res;
 
-  AdblPrepare pre = adbl_prepare_new (session->mysql, p_params, p_values);
+  AdblPrepare pre = adbl_prepare_new (p_params, p_values);
   
-  res = adbl_prepare_statement_select (pre, session, session->schema, table, session->ansi_quotes, err);
-  if (res)
+  // run the procedure
   {
-    goto exit_and_cleanup;
-  }
-  
-  res = adbl_prepare_binds_params (pre, err);
-  if (res)
-  {
-    goto exit_and_cleanup;    
-  }
-  
-  res = adbl_prepare_binds_result (pre, err);
-  if (res)
-  {
-    goto exit_and_cleanup;
-  }
-  
-  res = adbl_prepare_execute (pre, session, err);
-  if (res)
-  {
-    goto exit_and_cleanup;    
+    int i;
+    for (i = 0; i < self->max_retries; i++)
+    {
+      res = adbl_prepare_init (pre, self, self->mysql, err);
+      if (res)
+      {
+        if (res == CAPE_ERR_CONTINUE)
+        {
+          continue;
+        }
+        
+        cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql insert", cape_err_text(err));    
+        goto exit_and_cleanup;
+      }
+      
+      res = adbl_prepare_statement_select (pre, self, self->schema, table, self->ansi_quotes, err);
+      if (res)
+      {
+        goto exit_and_cleanup;
+      }
+      
+      res = adbl_prepare_binds_params (pre, err);
+      if (res)
+      {
+        if (res == CAPE_ERR_CONTINUE)
+        {
+          continue;
+        }
+        
+        goto exit_and_cleanup;    
+      }
+      
+      res = adbl_prepare_binds_result (pre, err);
+      if (res)
+      {
+        if (res == CAPE_ERR_CONTINUE)
+        {
+          continue;
+        }
+        
+        goto exit_and_cleanup;
+      }
+      
+      res = adbl_prepare_execute (pre, self, err);
+      if (res)
+      {
+        if (res == CAPE_ERR_CONTINUE)
+        {
+          continue;
+        }
+        
+        goto exit_and_cleanup;    
+      }
+    }
   }
   
   return adbl_prepare_to_cursor (&pre);
