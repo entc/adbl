@@ -130,7 +130,9 @@ int adbl_prepare_init (AdblPrepare self, AdblPvdSession session, MYSQL* mysql, C
   {
     // gather error code
     unsigned int error_code = mysql_stmt_errno (self->stmt);
-
+    
+    cape_log_fmt (CAPE_LL_ERROR, "ADBL", "prepare init", "error seen: %i", error_code);    
+    
     // use session error handling
     return adbl_check_error (session, error_code, err);
   }
@@ -327,6 +329,8 @@ int adbl_prepare_execute (AdblPrepare self, AdblPvdSession session, CapeErr err)
   {
     unsigned int error_code = mysql_stmt_errno (self->stmt);
     
+    cape_log_fmt (CAPE_LL_ERROR, "ADBL", "prepare execute", "error seen: %i", error_code);    
+
     // try to figure out if the error was serious
     res = adbl_check_error (session, error_code, err);
     if (res == CAPE_ERR_CONTINUE)
@@ -341,6 +345,8 @@ int adbl_prepare_execute (AdblPrepare self, AdblPvdSession session, CapeErr err)
   {
     unsigned int error_code = mysql_stmt_errno (self->stmt);
     
+    cape_log_fmt (CAPE_LL_ERROR, "ADBL", "store result", "error seen: %i", error_code);    
+
     // try to figure out if the error was serious
     res = adbl_check_error (session, error_code, err);
     if (res == CAPE_ERR_CONTINUE)
@@ -365,10 +371,14 @@ int adbl_prepare_prepare (AdblPrepare self, AdblPvdSession session, CapeStream s
   {
     unsigned int error_code = mysql_stmt_errno (self->stmt);
     
+    cape_log_fmt (CAPE_LL_ERROR, "ADBL", "prepare", "error seen: %i", error_code);    
+
     // try to figure out if the error was serious
     int res = adbl_check_error (session, error_code, err);
     if (res == CAPE_ERR_CONTINUE)
     {
+      cape_log_fmt (CAPE_LL_TRACE, "ADBL", "prepare", "trigger next cycle");    
+
       return CAPE_ERR_CONTINUE;   // statement went wrong, but there is hope to make it right again
     }
     
