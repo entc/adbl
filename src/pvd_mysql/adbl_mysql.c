@@ -316,6 +316,7 @@ number_t __STDCALL adbl_pvd_ins (AdblPvdSession self, const char* table, CapeUdc
       {
         if (res == CAPE_ERR_CONTINUE)
         {
+          cape_log_fmt (CAPE_LL_TRACE, "ADBL", "mysql insert", "enter new cycle #1 -> [%i]", i);
           continue;
         }
         
@@ -328,6 +329,7 @@ number_t __STDCALL adbl_pvd_ins (AdblPvdSession self, const char* table, CapeUdc
       {
         if (res == CAPE_ERR_CONTINUE)
         {
+          cape_log_fmt (CAPE_LL_TRACE, "ADBL", "mysql insert", "enter new cycle #2 -> [%i]", i);
           continue;
         }
         
@@ -340,6 +342,7 @@ number_t __STDCALL adbl_pvd_ins (AdblPvdSession self, const char* table, CapeUdc
       {
         if (res == CAPE_ERR_CONTINUE)
         {
+          cape_log_fmt (CAPE_LL_TRACE, "ADBL", "mysql insert", "enter new cycle #3 -> [%i]", i);
           continue;
         }
         
@@ -352,11 +355,15 @@ number_t __STDCALL adbl_pvd_ins (AdblPvdSession self, const char* table, CapeUdc
       {
         if (res == CAPE_ERR_CONTINUE)
         {
+          cape_log_fmt (CAPE_LL_TRACE, "ADBL", "mysql insert", "enter new cycle #4 -> [%i]", i);
           continue;
         }
         
         goto exit_and_cleanup;
       }
+      
+      // done
+      break;
     }
   }
 
@@ -429,6 +436,9 @@ int __STDCALL adbl_pvd_del (AdblPvdSession self, const char* table, CapeUdc* p_p
         
         goto exit_and_cleanup;
       }
+
+      // done
+      break;
     }
   }
   
@@ -499,6 +509,9 @@ int __STDCALL adbl_pvd_set (AdblPvdSession self, const char* table, CapeUdc* p_p
         
         goto exit_and_cleanup;
       }
+
+      // done
+      break;
     }
   }
     
@@ -571,6 +584,9 @@ number_t __STDCALL adbl_pvd_ins_or_set (AdblPvdSession self, const char* table, 
         
         goto exit_and_cleanup;
       }
+
+      // done
+      break;
     }
   }
   
@@ -683,6 +699,9 @@ AdblPvdCursor __STDCALL adbl_pvd_cursor_new (AdblPvdSession self, const char* ta
         
         goto exit_and_cleanup;    
       }
+
+      // done
+      break;
     }
   }
   
