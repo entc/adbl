@@ -178,6 +178,18 @@ void adbl_prepare_del (AdblPrepare* p_self)
 
 //-----------------------------------------------------------------------------
 
+void adbl_prepare__replace_binds (AdblBindVars* p_to_replace, AdblBindVars with_replace)
+{
+  if (*p_to_replace)
+  {
+    adbl_bindvars_del (p_to_replace);
+  }
+  
+  *p_to_replace = with_replace;
+}
+
+//-----------------------------------------------------------------------------
+
 AdblPvdCursor adbl_prepare_to_cursor (AdblPrepare* p_self)
 {
   AdblPrepare self = *p_self;
@@ -210,7 +222,7 @@ int adbl_prepare_binds_params (AdblPrepare self, CapeErr err)
   if (self->params_used)  // optional
   {
     // create bindings for mysql prepared statement engine
-    self->bindsParams = adbl_bindvars_new (self->params_used);
+    adbl_prepare__replace_binds (&(self->bindsParams), adbl_bindvars_new (self->params_used));
     
     // set bindings for mysql for all parameters
     res = adbl_bindvars_set_from_node (self->bindsParams, self->params, err);
@@ -238,7 +250,7 @@ int adbl_prepare_binds_values (AdblPrepare self, CapeErr err)
   if (self->columns_used)  // optional
   {
     // create bindings for mysql prepared statement engine
-    self->bindsValues = adbl_bindvars_new (self->columns_used);
+    adbl_prepare__replace_binds (&(self->bindsValues), adbl_bindvars_new (self->columns_used));
     
     // set bindings for mysql for all parameters
     res = adbl_bindvars_set_from_node (self->bindsValues, self->values, err);
@@ -264,7 +276,7 @@ int adbl_prepare_binds_result (AdblPrepare self, CapeErr err)
   int res;
   
   // allocate bind buffer
-  self->bindsValues = adbl_bindvars_new (self->columns_used);
+  adbl_prepare__replace_binds (&(self->bindsValues), adbl_bindvars_new (self->columns_used));
   
   res = adbl_bindvars_add_from_node (self->bindsValues, self->values, err);
   if (res)
@@ -289,7 +301,7 @@ int adbl_prepare_binds_all (AdblPrepare self, CapeErr err)
   number_t size = self->columns_used + self->params_used;
   
   // allocate bind buffer
-  self->bindsValues = adbl_bindvars_new (size);
+  adbl_prepare__replace_binds (&(self->bindsValues), adbl_bindvars_new (size));
 
   if (self->columns_used)
   {
