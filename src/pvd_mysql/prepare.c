@@ -732,7 +732,7 @@ int adbl_prepare_statement_setins (AdblPrepare self, AdblPvdSession session, con
   
   cape_stream_append_str (stream, ")");
   
-  cape_stream_append_str (stream, " ON DUPLICATE KEY UPDATE ");
+  cape_stream_append_str (stream, " ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id), ");
   
   self->columns_used = adbl_pvd_append_update (stream, ansi, self->params, table);
   
