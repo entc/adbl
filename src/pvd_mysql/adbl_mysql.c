@@ -603,9 +603,30 @@ exit_and_cleanup:
 
 int __STDCALL adbl_pvd_begin (AdblPvdSession self, CapeErr err)
 {
-  mysql_query (self->mysql, "START TRANSACTION");
-  
-  return adbl_pvd__error (self, err);
+  int i;
+  for (i = 0; i < self->max_retries; i++)
+  {
+    if (mysql_query (self->mysql, "START TRANSACTION") != 0)
+    {
+      unsigned int error_code = mysql_errno (self->mysql);
+      
+      cape_log_fmt (CAPE_LL_ERROR, "ADBL", "begin", "error seen: %i", error_code);    
+      
+      // try to figure out if the error was serious
+      int res = adbl_check_error (self, error_code, err);
+      if (res == CAPE_ERR_CONTINUE)
+      {
+        cape_log_fmt (CAPE_LL_TRACE, "ADBL", "begin", "trigger next cycle");    
+        continue;
+      }
+      
+      return cape_err_set_fmt (err, CAPE_ERR_3RDPARTY_LIB, "%i (%s): %s", error_code, mysql_sqlstate (self->mysql), mysql_error (self->mysql));
+    }
+    
+    break;
+  }
+    
+  return CAPE_ERR_NONE;
 }
 
 //-----------------------------------------------------------------------------
