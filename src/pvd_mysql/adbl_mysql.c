@@ -398,7 +398,7 @@ int __STDCALL adbl_pvd_del (AdblPvdSession self, const char* table, CapeUdc* p_p
           continue;
         }
         
-        cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql insert", cape_err_text(err));    
+        cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql delete", cape_err_text(err));    
         goto exit_and_cleanup;
       }
       
@@ -681,7 +681,7 @@ AdblPvdCursor __STDCALL adbl_pvd_cursor_new (AdblPvdSession self, const char* ta
       {
         if (res == CAPE_ERR_CONTINUE)
         {
-          cape_log_fmt (CAPE_LL_TRACE, "ADBL", "mysql insert", "enter new cycle #4 -> [%i]", i);    
+          cape_log_fmt (CAPE_LL_TRACE, "ADBL", "mysql cursor", "enter new cycle #4 -> [%i]", i);
           continue;
         }
         
@@ -693,7 +693,7 @@ AdblPvdCursor __STDCALL adbl_pvd_cursor_new (AdblPvdSession self, const char* ta
       {
         if (res == CAPE_ERR_CONTINUE)
         {
-          cape_log_fmt (CAPE_LL_TRACE, "ADBL", "mysql insert", "enter new cycle #5 -> [%i]", i);    
+          cape_log_fmt (CAPE_LL_TRACE, "ADBL", "mysql cursor", "enter new cycle #5 -> [%i]", i);
           continue;
         }
         
