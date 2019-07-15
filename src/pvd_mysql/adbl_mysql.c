@@ -98,13 +98,29 @@ int adbl_pvd__error (AdblPvdSession self, CapeErr err)
 int adbl_pvd_connect (AdblPvdSession self, CapeErr err)
 {
   int res;
+  int timeout;
+  my_bool reconnect;
   
   // settings
   mysql_options (self->mysql, MYSQL_OPT_COMPRESS, 0);
   
-  my_bool reconnect = FALSE;
+  reconnect = FALSE;
   mysql_options (self->mysql, MYSQL_OPT_RECONNECT, &reconnect);
   
+  // set propper read timeout
+  // TODO: seems not to work
+  timeout = 1;
+  mysql_options (self->mysql, MYSQL_OPT_READ_TIMEOUT, &timeout);
+
+  cape_log_fmt (CAPE_LL_TRACE, "ADBL", "connect [opts]: ", "read timeout: '%i'", timeout);
+  
+  // set propper write timeout
+  // TODO: seems not to work
+  timeout = 1;
+  mysql_options (self->mysql, MYSQL_OPT_WRITE_TIMEOUT, &timeout);
+
+  cape_log_fmt (CAPE_LL_TRACE, "ADBL", "connect [opts]: ", "write timeout: '%i'", timeout);
+
   // we start with no transaction -> activate autocommit
   mysql_options (self->mysql, MYSQL_INIT_COMMAND, "SET autocommit=1");
   
