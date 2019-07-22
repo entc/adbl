@@ -174,6 +174,39 @@ void adbl_bind_set (MYSQL_BIND* bind, CapeUdc item)
 
 //------------------------------------------------------------------------------------------------------
 
+void adbl_bind_add__string_options (MYSQL_BIND* bind, CapeUdc item)
+{
+  // options might be set, in case they are JSON encoded
+  const CapeString options_text = cape_udc_s (item, NULL);
+  if (options_text)
+  {
+    // decode
+    CapeUdc options = cape_json_from_s (options_text);
+    if (options)
+    {
+      number_t size = cape_udc_get_n (options, "size", 0);
+      if (size)
+      {
+        bind->buffer = CAPE_ALLOC(size);
+        memset (bind->buffer, 0, size);
+        
+        bind->buffer_length = size;
+        
+        return;
+      }
+    }
+  }
+
+  // default
+  
+  bind->buffer = CAPE_ALLOC(ADBL_BIND_BUFFER_SIZE);
+  memset (bind->buffer, 0, ADBL_BIND_BUFFER_SIZE);
+  
+  bind->buffer_length = ADBL_BIND_BUFFER_SIZE;
+}
+
+//------------------------------------------------------------------------------------------------------
+
 void adbl_bind_add (MYSQL_BIND* bind, CapeUdc item)
 {
   switch (cape_udc_type (item))
@@ -182,10 +215,8 @@ void adbl_bind_add (MYSQL_BIND* bind, CapeUdc item)
     {
       bind->buffer_type = MYSQL_TYPE_STRING;
       
-      bind->buffer = CAPE_ALLOC(ADBL_BIND_BUFFER_SIZE);
-      memset (bind->buffer, 0, ADBL_BIND_BUFFER_SIZE);
+      adbl_bind_add__string_options (bind, item);
       
-      bind->buffer_length = ADBL_BIND_BUFFER_SIZE;
       bind->is_null = CAPE_ALLOC(sizeof(my_bool));
       bind->length = 0;
       bind->error = 0;

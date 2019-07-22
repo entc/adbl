@@ -724,7 +724,7 @@ int adbl_prepare_statement_setins (AdblPrepare self, AdblPvdSession session, con
   cape_stream_append_str (stream, " (");
   
   // create columns for mysql for all parameters
-  self->params_used = adbl_pvd_append_columns (stream, ansi, self->values, table);
+  self->columns_used = adbl_pvd_append_columns (stream, ansi, self->values, table);
   
   cape_stream_append_str (stream, ") VALUES (");
   
@@ -732,9 +732,19 @@ int adbl_prepare_statement_setins (AdblPrepare self, AdblPvdSession session, con
   
   cape_stream_append_str (stream, ")");
   
-  cape_stream_append_str (stream, " ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id), ");
-  
-  self->columns_used = adbl_pvd_append_update (stream, ansi, self->params, table);
+  // check if we do have parameters
+  if (cape_udc_size (self->params) > 0)
+  {
+    cape_stream_append_str (stream, " ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id), ");
+    
+    self->params_used = adbl_pvd_append_update (stream, ansi, self->params, table);
+  }
+  else
+  {
+    cape_stream_append_str (stream, " ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)");
+    
+    self->params_used = 0;
+  }
   
   res = adbl_prepare_prepare (self, session, stream, err);
   

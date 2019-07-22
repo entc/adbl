@@ -330,6 +330,11 @@ int adbl_trx_rollback (AdblTrx* p_self, CapeErr err)
 
 int adbl_trx_start (AdblTrx self, CapeErr err)
 {
+  if (self == NULL)
+  {
+    return cape_err_set (err, CAPE_ERR_NO_OBJECT, "transaction is not an object");
+  }
+  
   if (self->in_trx == FALSE)
   {
     cape_log_msg (CAPE_LL_TRACE, "ADBL", "trx start", "START TRANSACTION");
