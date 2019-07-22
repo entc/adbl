@@ -130,7 +130,9 @@ int adbl_prepare_init (AdblPrepare self, AdblPvdSession session, MYSQL* mysql, C
   {
     // gather error code
     unsigned int error_code = mysql_stmt_errno (self->stmt);
-
+    
+    cape_log_fmt (CAPE_LL_ERROR, "ADBL", "prepare init", "error seen: %i", error_code);    
+    
     // use session error handling
     return adbl_check_error (session, error_code, err);
   }
@@ -176,6 +178,18 @@ void adbl_prepare_del (AdblPrepare* p_self)
 
 //-----------------------------------------------------------------------------
 
+void adbl_prepare__replace_binds (AdblBindVars* p_to_replace, AdblBindVars with_replace)
+{
+  if (*p_to_replace)
+  {
+    adbl_bindvars_del (p_to_replace);
+  }
+  
+  *p_to_replace = with_replace;
+}
+
+//-----------------------------------------------------------------------------
+
 AdblPvdCursor adbl_prepare_to_cursor (AdblPrepare* p_self)
 {
   AdblPrepare self = *p_self;
@@ -208,7 +222,7 @@ int adbl_prepare_binds_params (AdblPrepare self, CapeErr err)
   if (self->params_used)  // optional
   {
     // create bindings for mysql prepared statement engine
-    self->bindsParams = adbl_bindvars_new (self->params_used);
+    adbl_prepare__replace_binds (&(self->bindsParams), adbl_bindvars_new (self->params_used));
     
     // set bindings for mysql for all parameters
     res = adbl_bindvars_set_from_node (self->bindsParams, self->params, err);
@@ -236,7 +250,7 @@ int adbl_prepare_binds_values (AdblPrepare self, CapeErr err)
   if (self->columns_used)  // optional
   {
     // create bindings for mysql prepared statement engine
-    self->bindsValues = adbl_bindvars_new (self->columns_used);
+    adbl_prepare__replace_binds (&(self->bindsValues), adbl_bindvars_new (self->columns_used));
     
     // set bindings for mysql for all parameters
     res = adbl_bindvars_set_from_node (self->bindsValues, self->values, err);
@@ -262,7 +276,7 @@ int adbl_prepare_binds_result (AdblPrepare self, CapeErr err)
   int res;
   
   // allocate bind buffer
-  self->bindsValues = adbl_bindvars_new (self->columns_used);
+  adbl_prepare__replace_binds (&(self->bindsValues), adbl_bindvars_new (self->columns_used));
   
   res = adbl_bindvars_add_from_node (self->bindsValues, self->values, err);
   if (res)
@@ -287,7 +301,7 @@ int adbl_prepare_binds_all (AdblPrepare self, CapeErr err)
   number_t size = self->columns_used + self->params_used;
   
   // allocate bind buffer
-  self->bindsValues = adbl_bindvars_new (size);
+  adbl_prepare__replace_binds (&(self->bindsValues), adbl_bindvars_new (size));
 
   if (self->columns_used)
   {
@@ -327,6 +341,8 @@ int adbl_prepare_execute (AdblPrepare self, AdblPvdSession session, CapeErr err)
   {
     unsigned int error_code = mysql_stmt_errno (self->stmt);
     
+    cape_log_fmt (CAPE_LL_ERROR, "ADBL", "prepare execute", "error seen: %i", error_code);    
+
     // try to figure out if the error was serious
     res = adbl_check_error (session, error_code, err);
     if (res == CAPE_ERR_CONTINUE)
@@ -341,6 +357,8 @@ int adbl_prepare_execute (AdblPrepare self, AdblPvdSession session, CapeErr err)
   {
     unsigned int error_code = mysql_stmt_errno (self->stmt);
     
+    cape_log_fmt (CAPE_LL_ERROR, "ADBL", "store result", "error seen: %i", error_code);    
+
     // try to figure out if the error was serious
     res = adbl_check_error (session, error_code, err);
     if (res == CAPE_ERR_CONTINUE)
@@ -365,10 +383,14 @@ int adbl_prepare_prepare (AdblPrepare self, AdblPvdSession session, CapeStream s
   {
     unsigned int error_code = mysql_stmt_errno (self->stmt);
     
+    cape_log_fmt (CAPE_LL_ERROR, "ADBL", "prepare", "error seen: %i", error_code);    
+
     // try to figure out if the error was serious
     int res = adbl_check_error (session, error_code, err);
     if (res == CAPE_ERR_CONTINUE)
     {
+      cape_log_fmt (CAPE_LL_TRACE, "ADBL", "prepare", "trigger next cycle");    
+
       return CAPE_ERR_CONTINUE;   // statement went wrong, but there is hope to make it right again
     }
     
@@ -710,7 +732,7 @@ int adbl_prepare_statement_setins (AdblPrepare self, AdblPvdSession session, con
   
   cape_stream_append_str (stream, ")");
   
-  cape_stream_append_str (stream, " ON DUPLICATE KEY UPDATE ");
+  cape_stream_append_str (stream, " ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id), ");
   
   self->columns_used = adbl_pvd_append_update (stream, ansi, self->params, table);
   
