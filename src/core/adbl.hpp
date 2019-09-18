@@ -3,6 +3,7 @@
 
 #include "adbl.h"
 #include "hpp/cape_sys.hpp"
+#include "hpp/cape_stc.hpp"
 
 #include <stdexcept>
 
@@ -19,6 +20,8 @@ namespace adbl {
     {
     }
     
+    //-----------------------------------------------------------------------------
+    
     virtual ~TransactionScope ()
     {
       if (m_trx)
@@ -28,6 +31,8 @@ namespace adbl {
         adbl_trx_rollback (&m_trx, errh.err);
       }
     }
+    
+    //-----------------------------------------------------------------------------
     
     void start ()
     {
@@ -41,6 +46,8 @@ namespace adbl {
       }
     }
     
+    //-----------------------------------------------------------------------------
+    
     void commit ()
     {
       int res;
@@ -53,38 +60,52 @@ namespace adbl {
       }
     }
     
-    void trx_update (const char* table, CapeUdc* p_params, CapeUdc* p_values)
+    //-----------------------------------------------------------------------------
+    
+    void update (const char* table, cape::Udc&& params, cape::Udc&& values)
     {
       int res;
       cape::ErrHolder errh;
+      
+      // transfer ownership
+      CapeUdc c_params = params.release ();
+      CapeUdc c_values = values.release ();
 
       // execute database statement
-      res = adbl_trx_update (m_trx, table, p_params, p_values, errh.err);
-      if (res)
+      if (adbl_trx_update (m_trx, table, &c_params, &c_values, errh.err))
       {
         throw std::runtime_error (errh.text());
-      }      
+      }
     }
     
-    void trx_delete (const char* table, CapeUdc* p_params)
+    //-----------------------------------------------------------------------------
+    
+    void del (const char* table, cape::Udc&& params)
     {
       int res;
       cape::ErrHolder errh;
 
-      res = adbl_trx_delete (m_trx, table, p_params, errh.err);
-      if (res)
+      // transfer ownership
+      CapeUdc c_params = params.release ();
+      
+      if (adbl_trx_delete (m_trx, table, &c_params, errh.err))
       {
         throw std::runtime_error (errh.text());
       }      
     }
     
-    number_t trx_insert (const char* table, CapeUdc* p_values)
+    //-----------------------------------------------------------------------------
+    
+    number_t ins (const char* table, cape::Udc&& values)
     {
       number_t inserted_id = 0;
       cape::ErrHolder errh;
       
+      // transfer ownership
+      CapeUdc c_values = values.release ();
+      
       // execute database statement
-      inserted_id = adbl_trx_insert (m_trx, table, p_values, errh.err);
+      inserted_id = adbl_trx_insert (m_trx, table, &c_values, errh.err);
       if (inserted_id == 0)
       {
         throw std::runtime_error (errh.text());
@@ -92,6 +113,8 @@ namespace adbl {
       
       return inserted_id;
     }
+    
+    //-----------------------------------------------------------------------------
     
   protected:
     

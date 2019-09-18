@@ -87,7 +87,7 @@ int main (int argc, char *argv[])
         }
         else
         {
-          printf ("INSERTED ROW / ID: %i\n", last_inserted_row);
+          printf ("INSERTED ROW / ID: %li\n", last_inserted_row);
         }
       }
       
