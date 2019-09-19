@@ -9,6 +9,27 @@
 
 namespace adbl {
   
+  class Session
+  {
+    
+  public:  
+  
+    Session ()
+    {
+    }
+    
+    ~Session ()
+    {
+    }
+
+  private:
+    
+    AdblCtx m_ctx;
+    
+    AdblSession m_session;
+    
+  };
+  
   class TransactionScope
   {
     
