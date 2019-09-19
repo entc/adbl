@@ -14,13 +14,88 @@ namespace adbl {
     
   public:  
   
+    //-----------------------------------------------------------------------------
+    
     Session ()
     {
     }
     
+    //-----------------------------------------------------------------------------
+    
     ~Session ()
     {
+      if (m_session)
+      {
+        adbl_session_close (&m_session);
+      }
+      
+      if (m_ctx)
+      {
+        adbl_ctx_del (&m_ctx);
+      }
     }
+    
+    //-----------------------------------------------------------------------------
+    
+    int init (CapeErr err)
+    {
+      // create a new database context
+      m_ctx = adbl_ctx_new ("adbl", "adbl2_mysql", err);
+      if (m_ctx == NULL)
+      {
+        return cape_err_code (err);
+      }
+      
+      // connect to database
+      m_session = adbl_session_open_file (m_ctx, "adbl_default.json", err);
+      if (m_session == NULL)
+      {
+        return cape_err_code (err);
+      }
+      
+      return CAPE_ERR_NONE;
+    }
+    
+    //-----------------------------------------------------------------------------
+    
+    cape::Udc query (const char* table, cape::Udc& values)
+    {
+      cape::ErrHolder errh;
+      
+      // transfer ownership
+      CapeUdc c_values = values.release ();
+      
+      // execute the query
+      cape::Udc query_results (adbl_session_query (m_session, table, NULL, &c_values, errh.err));
+      if (query_results.empty())
+      {
+        throw std::runtime_error (errh.text());
+      }
+      
+      return query_results;
+    }
+    
+    //-----------------------------------------------------------------------------
+    
+    cape::Udc query (const char* table, cape::Udc& params, cape::Udc& values)
+    {
+      cape::ErrHolder errh;
+      
+      // transfer ownership
+      CapeUdc c_params = params.release ();
+      CapeUdc c_values = values.release ();
+      
+      // execute the query
+      cape::Udc query_results (adbl_session_query (m_session, table, &c_params, &c_values, errh.err));
+      if (query_results.empty())
+      {
+        throw std::runtime_error (errh.text());
+      }
+      
+      return query_results;
+    }
+
+    //-----------------------------------------------------------------------------
 
   private:
     
@@ -28,7 +103,11 @@ namespace adbl {
     
     AdblSession m_session;
     
+    friend class TransactionScope;
+    
   };
+  
+  //-----------------------------------------------------------------------------------------------------
   
   class TransactionScope
   {
@@ -37,6 +116,14 @@ namespace adbl {
     
     TransactionScope (AdblSession session)
     : m_session (session)
+    , m_trx (NULL)
+    {
+    }
+    
+    //-----------------------------------------------------------------------------
+    
+    TransactionScope (Session& session)
+    : m_session (session.m_session)
     , m_trx (NULL)
     {
     }
@@ -83,9 +170,47 @@ namespace adbl {
     
     //-----------------------------------------------------------------------------
     
-    void update (const char* table, cape::Udc&& params, cape::Udc&& values)
+    cape::Udc query (const char* table, cape::Udc& values)
     {
-      int res;
+      cape::ErrHolder errh;
+      
+      // transfer ownership
+      CapeUdc c_values = values.release ();
+      
+      // execute the query
+      cape::Udc query_results (adbl_trx_query (m_trx, table, NULL, &c_values, errh.err));
+      if (query_results.empty())
+      {
+        throw std::runtime_error (errh.text());
+      }
+      
+      return query_results;
+    }
+    
+    //-----------------------------------------------------------------------------
+    
+    cape::Udc query (const char* table, cape::Udc& params, cape::Udc& values)
+    {
+      cape::ErrHolder errh;
+      
+      // transfer ownership
+      CapeUdc c_params = params.release ();
+      CapeUdc c_values = values.release ();
+      
+      // execute the query
+      cape::Udc query_results (adbl_trx_query (m_trx, table, &c_params, &c_values, errh.err));
+      if (query_results.empty())
+      {
+        throw std::runtime_error (errh.text());
+      }
+      
+      return query_results;
+    }
+    
+    //-----------------------------------------------------------------------------
+    
+    void update (const char* table, cape::Udc& params, cape::Udc& values)
+    {
       cape::ErrHolder errh;
       
       // transfer ownership
@@ -101,9 +226,8 @@ namespace adbl {
     
     //-----------------------------------------------------------------------------
     
-    void del (const char* table, cape::Udc&& params)
+    void del (const char* table, cape::Udc& params)
     {
-      int res;
       cape::ErrHolder errh;
 
       // transfer ownership
@@ -117,7 +241,7 @@ namespace adbl {
     
     //-----------------------------------------------------------------------------
     
-    number_t ins (const char* table, cape::Udc&& values)
+    number_t ins (const char* table, cape::Udc& values)
     {
       number_t inserted_id = 0;
       cape::ErrHolder errh;
@@ -144,6 +268,8 @@ namespace adbl {
     AdblTrx m_trx;
     
   };  
+  
+  //-----------------------------------------------------------------------------------------------------
 }
 
 #endif
