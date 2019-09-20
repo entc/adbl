@@ -248,11 +248,13 @@ namespace adbl {
       
       // transfer ownership
       CapeUdc c_values = values.release ();
-      
+            
       // execute database statement
       inserted_id = adbl_trx_insert (m_trx, table, &c_values, errh.err);
-      if (inserted_id == 0)
+      if (inserted_id <= 0)
       {
+        std::cout << errh.text() << std::endl;
+        
         throw std::runtime_error (errh.text());
       }
       
