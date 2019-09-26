@@ -17,6 +17,55 @@
 
 static int init_status = 0;
 
+#if defined __WINDOWS_OS
+
+#include <windows.h>
+
+//------------------------------------------------------------------------------------------------------
+
+// this might work?
+extern "C" BOOL WINAPI DllMain (HINSTANCE const instance, DWORD const reason, LPVOID const reserved)
+{
+  // Perform actions based on the reason for calling.
+  switch (reason)
+  {
+    case DLL_PROCESS_ATTACH:
+    {
+      cape_log_msg (CAPE_LL_DEBUG, "ADBL", "load library", "MYSQL INIT");
+      
+      mysql_library_init (0, NULL, NULL);  
+      
+      break;
+    }      
+    case DLL_THREAD_ATTACH:
+    {
+      
+      break;
+    }      
+    case DLL_THREAD_DETACH:
+    {
+      
+      break;
+    }      
+    case DLL_PROCESS_DETACH:
+    {
+      cape_log_msg (CAPE_LL_DEBUG, "ADBL", "unload library", "MYSQL DONE");
+      
+      mysql_thread_end ();
+      
+      mysql_library_end ();
+      
+      break;
+    }
+  }
+  
+  return TRUE;  // Successful DLL_PROCESS_ATTACH.
+}
+
+//------------------------------------------------------------------------------------------------------
+
+#else
+
 //------------------------------------------------------------------------------------------------------
 
 void __attribute__ ((constructor)) library_init (void)
@@ -36,6 +85,8 @@ void __attribute__ ((destructor)) library_fini (void)
   
   mysql_library_end ();
 }
+
+#endif
 
 //------------------------------------------------------------------------------------------------------
 
