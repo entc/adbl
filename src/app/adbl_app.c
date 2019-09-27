@@ -10,6 +10,9 @@
 
 int main (int argc, char *argv[])
 {
+  int i;
+  number_t last_inserted_row = 0;
+
   CapeErr err = cape_err_new ();
   
   AdblCtx ctx = NULL;
@@ -52,6 +55,8 @@ int main (int argc, char *argv[])
   
   // fetch
   {
+    CapeUdc results;
+
     //CapeUdc params = cape_udc_new (CAPE_UDC_NODE, NULL);
     
     
@@ -65,16 +70,13 @@ int main (int argc, char *argv[])
     cape_udc_add_s_cp    (columns, "col01", NULL);
     cape_udc_add_s_cp    (columns, "col02", NULL);
     
-    CapeUdc results = adbl_trx_query (trx, "test_table01", NULL, &columns, err);
+    results = adbl_trx_query (trx, "test_table01", NULL, &columns, err);
     
     if (results)
     {
       cape_udc_del (&results);
     }
   }
-  
-  int i;
-  number_t last_inserted_row = 0;
   
   // insert
   for (i = 0; i < 10; i++)

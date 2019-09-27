@@ -337,9 +337,11 @@ int adbl_trx_start (AdblTrx self, CapeErr err)
   
   if (self->in_trx == FALSE)
   {
+    int res;
+
     cape_log_msg (CAPE_LL_TRACE, "ADBL", "trx start", "START TRANSACTION");
     
-    int res = self->pvd->pvd_begin (self->session, err);
+    res = self->pvd->pvd_begin (self->session, err);
     if (res)
     {
       return res;
