@@ -23,8 +23,12 @@ if (NOT SQLITE_FOUND)
     ##____________________________________________________________________________
     ## Actions taken when all components have been found
 
-    find_package_handle_standard_args (SQLITE DEFAULT_MSG SQLITE_LIBRARIES SQLITE_INCLUDES)
+    #find_package_handle_standard_args (SQLITE DEFAULT_MSG SQLITE_LIBRARIES SQLITE_INCLUDES)
 
+	if (SQLITE_INCLUDES AND SQLITE_LIBRARIES)
+      SET(SQLITE_FOUND TRUE)
+    endif (SQLITE_INCLUDES AND SQLITE_LIBRARIES)
+	
     if (SQLITE_FOUND)
       if (NOT SQLITE_FIND_QUIETLY)
         message (STATUS "SQLITE_INCLUDES  = ${SQLITE_INCLUDES}")
