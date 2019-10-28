@@ -480,3 +480,27 @@ CapeUdc adbl_trx_cursor_get (AdblCursor self)
 }
 
 //-----------------------------------------------------------------------------
+
+void adbl_param_add__between_n (CapeUdc params, const CapeString name, number_t from, number_t until)
+{
+  CapeUdc h = cape_udc_new (CAPE_UDC_NODE, name);
+
+  cape_udc_add_n (h, "__from", from);
+  cape_udc_add_n (h, "__to", until);
+  
+  cape_udc_add (params, &h);
+}
+
+//-----------------------------------------------------------------------------
+
+void adbl_param_add__between_d (CapeUdc params, const CapeString name, CapeDatetime* from, CapeDatetime* until)
+{
+  CapeUdc h = cape_udc_new (CAPE_UDC_NODE, name);
+  
+  cape_udc_add_d (h, "__from", from);
+  cape_udc_add_d (h, "__to", until);
+  
+  cape_udc_add (params, &h);
+}
+
+//-----------------------------------------------------------------------------

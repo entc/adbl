@@ -57,6 +57,10 @@ AdblPrepare adbl_prepare_new (CapeUdc* p_params, CapeUdc* p_values)
         case CAPE_UDC_FLOAT:
         case CAPE_UDC_NULL:
         case CAPE_UDC_NODE:
+        {
+          cape_udc_add (self->values, &item);
+          break;
+        }
         case CAPE_UDC_LIST:
         {
           cape_udc_add (self->values, &item);
@@ -225,7 +229,7 @@ int adbl_prepare_binds_params (AdblPrepare self, CapeErr err)
     adbl_prepare__replace_binds (&(self->bindsParams), adbl_bindvars_new (self->params_used));
     
     // set bindings for mysql for all parameters
-    res = adbl_bindvars_set_from_node (self->bindsParams, self->params, err);
+    res = adbl_bindvars_set_from_node (self->bindsParams, self->params, TRUE, err);
     if (res)
     {
       return res;
@@ -253,7 +257,7 @@ int adbl_prepare_binds_values (AdblPrepare self, CapeErr err)
     adbl_prepare__replace_binds (&(self->bindsValues), adbl_bindvars_new (self->columns_used));
     
     // set bindings for mysql for all parameters
-    res = adbl_bindvars_set_from_node (self->bindsValues, self->values, err);
+    res = adbl_bindvars_set_from_node (self->bindsValues, self->values, FALSE, err);
     if (res)
     {
       return res;
@@ -305,7 +309,7 @@ int adbl_prepare_binds_all (AdblPrepare self, CapeErr err)
 
   if (self->columns_used)
   {
-    res = adbl_bindvars_set_from_node (self->bindsValues, self->values, err);
+    res = adbl_bindvars_set_from_node (self->bindsValues, self->values, FALSE, err);
     if (res)
     {
       return res;
@@ -314,7 +318,7 @@ int adbl_prepare_binds_all (AdblPrepare self, CapeErr err)
   
   if (self->params_used)
   {
-    res = adbl_bindvars_set_from_node (self->bindsValues, self->params, err);
+    res = adbl_bindvars_set_from_node (self->bindsValues, self->params, TRUE, err);
     if (res)
     {
       return res;
@@ -529,28 +533,83 @@ number_t adbl_prepare_append_constraints (CapeStream stream, int ansi, CapeUdc p
     
     if (param_name)
     {
-      if (cursor->position > 0)
+      switch (cape_udc_type (cursor->item))
       {
-        cape_stream_append_str (stream, " AND ");
+        case CAPE_UDC_NODE:
+        {
+          // check what kind of special param we have
+          CapeUdc from_node = cape_udc_get (cursor->item, "__from");
+          CapeUdc to_node = cape_udc_get (cursor->item, "__to");
+          
+          if (from_node && to_node)
+          {
+            if (cursor->position > 0)
+            {
+              cape_stream_append_str (stream, " AND ");
+            }
+            
+            if (ansi == TRUE)
+            {
+              cape_stream_append_str (stream, "\"" );
+              cape_stream_append_str (stream, table );
+              cape_stream_append_str (stream, "\".\"" );
+              cape_stream_append_str (stream, param_name);
+              cape_stream_append_c (stream, '\"');
+            }
+            else
+            {
+              cape_stream_append_str (stream, table );
+              cape_stream_append_str (stream, "." );
+              cape_stream_append_str (stream, param_name);   
+            }
+            
+            switch (cape_udc_type (from_node))
+            {
+              case CAPE_UDC_DATETIME:
+              {
+                cape_stream_append_str (stream, " BETWEEN CAST(? AS DATE) AND CAST(? AS DATE)" );
+                break;
+              }
+              default:
+              {
+                cape_stream_append_str (stream, " BETWEEN ? AND ?" );
+                break;                
+              }
+            }
+            
+            used += 2;            
+          }
+          
+          break;
+        }
+        default:
+        {
+          if (cursor->position > 0)
+          {
+            cape_stream_append_str (stream, " AND ");
+          }
+          
+          if (ansi == TRUE)
+          {
+            cape_stream_append_str (stream, "\"" );
+            cape_stream_append_str (stream, table );
+            cape_stream_append_str (stream, "\".\"" );
+            cape_stream_append_str (stream, param_name);
+            cape_stream_append_str (stream, "\" = ?" );
+          }
+          else
+          {
+            cape_stream_append_str (stream, table );
+            cape_stream_append_str (stream, "." );
+            cape_stream_append_str (stream, param_name);   
+            cape_stream_append_str (stream, " = ?" );
+          }
+          
+          used++;
+          
+          break;
+        }        
       }
-      
-      if (ansi == TRUE)
-      {
-        cape_stream_append_str (stream, "\"" );
-        cape_stream_append_str (stream, table );
-        cape_stream_append_str (stream, "\".\"" );
-        cape_stream_append_str (stream, param_name);
-        cape_stream_append_str (stream, "\" = ?" );
-      }
-      else
-      {
-        cape_stream_append_str (stream, table );
-        cape_stream_append_str (stream, "." );
-        cape_stream_append_str (stream, param_name);   
-        cape_stream_append_str (stream, " = ?" );
-      }
-      
-      used++;
     }
   }
   

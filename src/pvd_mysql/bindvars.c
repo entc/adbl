@@ -87,7 +87,7 @@ MYSQL_BIND* adbl_bindvars_binds (AdblBindVars self)
 
 //------------------------------------------------------------------------------------------------------
 
-void adbl_bind_set (MYSQL_BIND* bind, CapeUdc item)
+void adbl_bind_set (MYSQL_BIND* bind, CapeUdc item, int check_for_specials)
 {
   switch (cape_udc_type (item))
   {
@@ -128,6 +128,18 @@ void adbl_bind_set (MYSQL_BIND* bind, CapeUdc item)
       
       break;
     }
+    case CAPE_UDC_DATETIME:
+    {
+      bind->buffer_type = MYSQL_TYPE_DATETIME;
+      bind->buffer = cape_udc_data (item);
+      bind->buffer_length = 0;
+      bind->is_null = 0;
+      bind->length = 0;
+      bind->error = 0; 
+      bind->is_unsigned = 0;
+      
+      break;
+    }
     case CAPE_UDC_BOOL:
     {
       bind->buffer_type = MYSQL_TYPE_LONG;    // use long because original is int
@@ -155,6 +167,21 @@ void adbl_bind_set (MYSQL_BIND* bind, CapeUdc item)
     case CAPE_UDC_LIST:
     case CAPE_UDC_NODE:
     {
+      if (check_for_specials)
+      {
+        // check what kind of special param we have
+        CapeUdc from_node = cape_udc_get (item, "__from");
+        CapeUdc to_node = cape_udc_get (item, "__to");
+        
+        if (from_node && to_node)
+        {
+          adbl_bind_set (bind, from_node, FALSE);
+          adbl_bind_set (bind, to_node, FALSE);
+          
+          break;
+        }
+      }
+      
       // convert into string
       CapeString h = cape_json_to_s (item);
       
@@ -369,13 +396,13 @@ int adbl_bind_get (MYSQL_BIND* bind, CapeUdc item)
 
 //------------------------------------------------------------------------------------------------------
 
-int adbl_bindvars_set (AdblBindVars self, CapeUdc item, CapeErr err)
+int adbl_bindvars_set (AdblBindVars self, CapeUdc item, int check_for_specials, CapeErr err)
 {
   if (self->pos < self->size)
   {
     MYSQL_BIND* bind = &(self->binds[self->pos]);
     
-    adbl_bind_set (bind, item);
+    adbl_bind_set (bind, item, check_for_specials);
     
     self->pos++;
   }
@@ -417,7 +444,7 @@ int adbl_bindvars_get (AdblBindVars self, number_t index, CapeUdc item)
 
 //------------------------------------------------------------------------------------------------------
 
-int adbl_bindvars_set_from_node (AdblBindVars self, CapeUdc node, CapeErr err)
+int adbl_bindvars_set_from_node (AdblBindVars self, CapeUdc node, int check_for_specials, CapeErr err)
 {
   int res;
   CapeUdcCursor* cursor = cape_udc_cursor_new (node, CAPE_DIRECTION_FORW);
@@ -427,7 +454,7 @@ int adbl_bindvars_set_from_node (AdblBindVars self, CapeUdc node, CapeErr err)
     const CapeString param_name = cape_udc_name (cursor->item);
     if (param_name)
     {
-      res = adbl_bindvars_set (self, cursor->item, err);
+      res = adbl_bindvars_set (self, cursor->item, check_for_specials, err);
       if (res)
       {
         goto exit;

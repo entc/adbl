@@ -23,7 +23,7 @@ __CAPE_LIBEX   void            adbl_bindvars_del             (AdblBindVars*);
 
 __CAPE_LIBEX   int             adbl_bindvars_get             (AdblBindVars, number_t index, CapeUdc item);  // returns if NULL = false
 
-__CAPE_LIBEX   int             adbl_bindvars_set_from_node   (AdblBindVars, CapeUdc node, CapeErr err);
+__CAPE_LIBEX   int             adbl_bindvars_set_from_node   (AdblBindVars, CapeUdc node, int check_for_specials, CapeErr err);
 
 __CAPE_LIBEX   int             adbl_bindvars_add_from_node   (AdblBindVars, CapeUdc node, CapeErr err);
 

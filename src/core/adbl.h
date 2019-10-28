@@ -74,6 +74,12 @@ __CAPE_LIBEX   int                adbl_trx_cursor_next       (AdblCursor);
 
 __CAPE_LIBEX   CapeUdc            adbl_trx_cursor_get        (AdblCursor);
 
+//-----------------------------------------------------------------------------
+
+__CAPE_LIBEX   void               adbl_param_add__between_n  (CapeUdc params, const CapeString name, number_t from, number_t until);
+
+__CAPE_LIBEX   void               adbl_param_add__between_d  (CapeUdc params, const CapeString name, CapeDatetime* from, CapeDatetime* until);
+
 //=============================================================================
 
 #endif
