@@ -1,4 +1,5 @@
 #include "adbl.h" 
+#include "adbl_types.h"
 
 // cape includes
 #include "sys/cape_dl.h"
@@ -483,24 +484,76 @@ CapeUdc adbl_trx_cursor_get (AdblCursor self)
 
 //-----------------------------------------------------------------------------
 
-void adbl_param_add__between_n (CapeUdc params, const CapeString name, number_t from, number_t until)
+void adbl_param_add__greater_than_n (CapeUdc params, const CapeString name, number_t value)
 {
   CapeUdc h = cape_udc_new (CAPE_UDC_NODE, name);
-
-  cape_udc_add_n (h, "__from", from);
-  cape_udc_add_n (h, "__to", until);
+  
+  cape_udc_add_n (h, ADBL_SPECIAL__TYPE, ADBL_TYPE__GREATER_THAN);
+  cape_udc_add_n (h, ADBL_SPECIAL__GREATER, value);
   
   cape_udc_add (params, &h);
 }
 
 //-----------------------------------------------------------------------------
 
-void adbl_param_add__between_d (CapeUdc params, const CapeString name, CapeDatetime* from, CapeDatetime* until)
+void adbl_param_add__greater_than_d (CapeUdc params, const CapeString name, const CapeDatetime* value)
 {
   CapeUdc h = cape_udc_new (CAPE_UDC_NODE, name);
   
-  cape_udc_add_d (h, "__from", from);
-  cape_udc_add_d (h, "__to", until);
+  cape_udc_add_n (h, ADBL_SPECIAL__TYPE, ADBL_TYPE__GREATER_THAN);
+  cape_udc_add_d (h, ADBL_SPECIAL__GREATER, value);
+  
+  cape_udc_add (params, &h);
+}
+
+//-----------------------------------------------------------------------------
+
+void adbl_param_add__less_than_n (CapeUdc params, const CapeString name, number_t value)
+{
+  CapeUdc h = cape_udc_new (CAPE_UDC_NODE, name);
+  
+  cape_udc_add_n (h, ADBL_SPECIAL__TYPE, ADBL_TYPE__LESS_THAN);
+  cape_udc_add_n (h, ADBL_SPECIAL__LESS, value);
+  
+  cape_udc_add (params, &h);
+}
+
+//-----------------------------------------------------------------------------
+
+void adbl_param_add__less_than_d (CapeUdc params, const CapeString name, const CapeDatetime* value)
+{
+  CapeUdc h = cape_udc_new (CAPE_UDC_NODE, name);
+  
+  cape_udc_add_n (h, ADBL_SPECIAL__TYPE, ADBL_TYPE__LESS_THAN);
+  cape_udc_add_d (h, ADBL_SPECIAL__LESS, value);
+  
+  cape_udc_add (params, &h);
+}
+
+//-----------------------------------------------------------------------------
+
+void adbl_param_add__between_n (CapeUdc params, const CapeString name, number_t from, number_t until)
+{
+  CapeUdc h = cape_udc_new (CAPE_UDC_NODE, name);
+
+  cape_udc_add_n (h, ADBL_SPECIAL__TYPE, ADBL_TYPE__BETWEEN);
+
+  cape_udc_add_n (h, ADBL_SPECIAL__BETWEEN_FROM, from);
+  cape_udc_add_n (h, ADBL_SPECIAL__BETWEEN_TO, until);
+  
+  cape_udc_add (params, &h);
+}
+
+//-----------------------------------------------------------------------------
+
+void adbl_param_add__between_d (CapeUdc params, const CapeString name, const CapeDatetime* from, const CapeDatetime* until)
+{
+  CapeUdc h = cape_udc_new (CAPE_UDC_NODE, name);
+  
+  cape_udc_add_n (h, ADBL_SPECIAL__TYPE, ADBL_TYPE__BETWEEN);
+  
+  cape_udc_add_d (h, ADBL_SPECIAL__BETWEEN_FROM, from);
+  cape_udc_add_d (h, ADBL_SPECIAL__BETWEEN_TO, until);
   
   cape_udc_add (params, &h);
 }

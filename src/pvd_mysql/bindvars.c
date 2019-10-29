@@ -1,3 +1,4 @@
+#include "adbl_types.h"
 #include "bindvars.h"
 
 // cape includes
@@ -87,80 +88,154 @@ MYSQL_BIND* adbl_bindvars_binds (AdblBindVars self)
 
 //------------------------------------------------------------------------------------------------------
 
-void adbl_bind_set (MYSQL_BIND* bind, CapeUdc item, int check_for_specials)
+void adbl_bindvars_set (AdblBindVars self, CapeUdc item, int check_for_specials)
 {
   switch (cape_udc_type (item))
   {
     case CAPE_UDC_STRING:
     {
-      const CapeString h = cape_udc_s (item, NULL);
-      
-      bind->buffer_type = MYSQL_TYPE_STRING;
-      bind->buffer = (char*)h;
-      bind->buffer_length = strlen (h);
-      bind->is_null = 0;
-      bind->length = 0;
-      bind->error = 0;
-      
+      if (self->pos < self->size)
+      {
+        MYSQL_BIND* bind = &(self->binds[self->pos]);
+        
+        const CapeString h = cape_udc_s (item, NULL);
+        
+        bind->buffer_type = MYSQL_TYPE_STRING;
+        bind->buffer = (char*)h;
+        bind->buffer_length = strlen (h);
+        bind->is_null = 0;
+        bind->length = 0;
+        bind->error = 0;
+
+        self->pos++;
+      }
+            
       break;
     }
     case CAPE_UDC_NUMBER:
     {
-      bind->buffer_type = MYSQL_TYPE_LONG;
-      bind->buffer = cape_udc_data (item);
-      bind->buffer_length = 0;
-      bind->is_null = 0;
-      bind->length = 0;
-      bind->error = 0; 
-      bind->is_unsigned = 0;
+      if (self->pos < self->size)
+      {
+        MYSQL_BIND* bind = &(self->binds[self->pos]);
+        
+        printf ("SET BIND NUMBER: %li\n", cape_udc_n (item, 0));
+        
+        bind->buffer_type = MYSQL_TYPE_LONG;
+        bind->buffer = cape_udc_data (item);
+        bind->buffer_length = 0;
+        bind->is_null = 0;
+        bind->length = 0;
+        bind->error = 0; 
+        bind->is_unsigned = 0;
+        
+        self->pos++;
+      }
       
       break;
     }
     case CAPE_UDC_FLOAT:
     {
-      bind->buffer_type = MYSQL_TYPE_DOUBLE;
-      bind->buffer = cape_udc_data (item);
-      bind->buffer_length = 0;
-      bind->is_null = 0;
-      bind->length = 0;
-      bind->error = 0; 
-      bind->is_unsigned = 0;
+      if (self->pos < self->size)
+      {
+        MYSQL_BIND* bind = &(self->binds[self->pos]);
+        
+        bind->buffer_type = MYSQL_TYPE_DOUBLE;
+        bind->buffer = cape_udc_data (item);
+        bind->buffer_length = 0;
+        bind->is_null = 0;
+        bind->length = 0;
+        bind->error = 0; 
+        bind->is_unsigned = 0;
+        
+        self->pos++;
+      }
       
       break;
     }
     case CAPE_UDC_DATETIME:
     {
-      bind->buffer_type = MYSQL_TYPE_DATETIME;
-      bind->buffer = cape_udc_data (item);
-      bind->buffer_length = 0;
-      bind->is_null = 0;
-      bind->length = 0;
-      bind->error = 0; 
-      bind->is_unsigned = 0;
+      if (self->pos < self->size)
+      {
+        MYSQL_BIND* bind = &(self->binds[self->pos]);
+        
+        const CapeDatetime* cape_dt = cape_udc_d (item, NULL);
+        
+        if (cape_dt)
+        {
+          MYSQL_TIME* dt = CAPE_NEW(MYSQL_TIME);
+          
+          dt->year = cape_dt->year;
+          dt->month = cape_dt->month;
+          dt->day = cape_dt->day;
+          
+          dt->hour = cape_dt->hour;
+          dt->minute = cape_dt->minute;
+          dt->second = cape_dt->sec;
+          
+          //dt->second_part = cape_dt->msec * 1000;
+          dt->second_part = cape_dt->usec;
+          
+          bind->buffer_type = MYSQL_TYPE_DATETIME;
+          bind->buffer = dt;
+          bind->buffer_length = 0;
+          bind->is_null = 0;
+          bind->length = 0;
+          bind->error = 0; 
+          bind->is_unsigned = 0;
+          
+          bind->pack_length = 1;
+        }
+        else
+        {
+          bind->buffer_type = MYSQL_TYPE_DATETIME;
+          bind->buffer = NULL;
+          bind->buffer_length = 0;
+          bind->is_null = 0;
+          bind->length = 0;
+          bind->error = 0; 
+          bind->is_unsigned = 0;
+        }
+        
+        self->pos++;
+      }
       
       break;
     }
     case CAPE_UDC_BOOL:
     {
-      bind->buffer_type = MYSQL_TYPE_LONG;    // use long because original is int
-      bind->buffer = cape_udc_data (item);
-      bind->buffer_length = 0;
-      bind->is_null = 0;
-      bind->length = 0;
-      bind->error = 0; 
-      bind->is_unsigned = 0;
+      if (self->pos < self->size)
+      {
+        MYSQL_BIND* bind = &(self->binds[self->pos]);
+        
+        bind->buffer_type = MYSQL_TYPE_LONG;    // use long because original is int
+        bind->buffer = cape_udc_data (item);
+        bind->buffer_length = 0;
+        bind->is_null = 0;
+        bind->length = 0;
+        bind->error = 0; 
+        bind->is_unsigned = 0;
+        
+        self->pos++;
+      }
       
       break;
     }
     case CAPE_UDC_NULL:
     {
-      bind->buffer_type = MYSQL_TYPE_NULL;
-      bind->buffer = NULL;
-      bind->buffer_length = 0;
-      bind->is_null = 0;
-      bind->length = 0;
-      bind->error = 0; 
-      bind->is_unsigned = 0;
+      if (self->pos < self->size)
+      {
+        MYSQL_BIND* bind = &(self->binds[self->pos]);
+        
+        bind->buffer_type = MYSQL_TYPE_NULL;
+        bind->buffer = NULL;
+        bind->buffer_length = 0;
+        bind->is_null = 0;
+        bind->length = 0;
+        bind->error = 0; 
+        bind->is_unsigned = 0;
+
+        self->pos++;
+      }
 
       break;
     }
@@ -169,32 +244,69 @@ void adbl_bind_set (MYSQL_BIND* bind, CapeUdc item, int check_for_specials)
     {
       if (check_for_specials)
       {
-        // check what kind of special param we have
-        CapeUdc from_node = cape_udc_get (item, "__from");
-        CapeUdc to_node = cape_udc_get (item, "__to");
-        
-        if (from_node && to_node)
+        switch (cape_udc_get_n (item, ADBL_SPECIAL__TYPE, 0))
         {
-          adbl_bind_set (bind, from_node, FALSE);
-          adbl_bind_set (bind, to_node, FALSE);
-          
-          break;
+          case ADBL_TYPE__BETWEEN:
+          {
+            // check what kind of special param we have
+            CapeUdc from_node = cape_udc_get (item, ADBL_SPECIAL__BETWEEN_FROM);
+            CapeUdc to_node = cape_udc_get (item, ADBL_SPECIAL__BETWEEN_TO);
+            
+            if (from_node && to_node)
+            {
+              adbl_bindvars_set (self, from_node, FALSE);
+              adbl_bindvars_set (self, to_node, FALSE);
+            }
+            
+            break;
+          }
+          case ADBL_TYPE__GREATER_THAN:
+          {
+            CapeUdc greater = cape_udc_get (item, ADBL_SPECIAL__GREATER);
+           
+            if (greater)
+            {
+              adbl_bindvars_set (self, greater, FALSE);
+            }
+           
+            break;
+          }
+          case ADBL_TYPE__LESS_THAN:
+          {
+            CapeUdc less = cape_udc_get (item, ADBL_SPECIAL__LESS);
+            
+            if (less)
+            {
+              adbl_bindvars_set (self, less, FALSE);
+            }
+            
+            break;
+          }
         }
       }
-      
-      // convert into string
-      CapeString h = cape_json_to_s (item);
-      
-      bind->buffer_type = MYSQL_TYPE_STRING;
-      bind->buffer = h;
-      bind->buffer_length = strlen (h);
-      bind->is_null = NULL;
-      bind->length = 0;
-      bind->error = 0;
-
-      bind->pack_length = 1;
-
-      break;
+      else
+      {
+        if (self->pos < self->size)
+        {
+          MYSQL_BIND* bind = &(self->binds[self->pos]);
+          
+          // convert into string
+          CapeString h = cape_json_to_s (item);
+          
+          bind->buffer_type = MYSQL_TYPE_STRING;
+          bind->buffer = h;
+          bind->buffer_length = strlen (h);
+          bind->is_null = NULL;
+          bind->length = 0;
+          bind->error = 0;
+          
+          bind->pack_length = 1;
+          
+          self->pos++;
+        }
+        
+        break;
+      }
     }
   }
 }
@@ -396,22 +508,6 @@ int adbl_bind_get (MYSQL_BIND* bind, CapeUdc item)
 
 //------------------------------------------------------------------------------------------------------
 
-int adbl_bindvars_set (AdblBindVars self, CapeUdc item, int check_for_specials, CapeErr err)
-{
-  if (self->pos < self->size)
-  {
-    MYSQL_BIND* bind = &(self->binds[self->pos]);
-    
-    adbl_bind_set (bind, item, check_for_specials);
-    
-    self->pos++;
-  }
-  
-  return CAPE_ERR_NONE;
-}
-
-//------------------------------------------------------------------------------------------------------
-
 int adbl_bindvars_add (AdblBindVars self, CapeUdc item, CapeErr err)
 {
   if (self->pos < self->size)
@@ -454,17 +550,9 @@ int adbl_bindvars_set_from_node (AdblBindVars self, CapeUdc node, int check_for_
     const CapeString param_name = cape_udc_name (cursor->item);
     if (param_name)
     {
-      res = adbl_bindvars_set (self, cursor->item, check_for_specials, err);
-      if (res)
-      {
-        goto exit;
-      }
+      adbl_bindvars_set (self, cursor->item, check_for_specials);
     }
   }
-  
-  res = CAPE_ERR_NONE;
-  
-  exit:
   
   cape_udc_cursor_del (&cursor);
   return CAPE_ERR_NONE;

@@ -76,9 +76,17 @@ __CAPE_LIBEX   CapeUdc            adbl_trx_cursor_get        (AdblCursor);
 
 //-----------------------------------------------------------------------------
 
-__CAPE_LIBEX   void               adbl_param_add__between_n  (CapeUdc params, const CapeString name, number_t from, number_t until);
+__CAPE_LIBEX   void          adbl_param_add__greater_than_n  (CapeUdc params, const CapeString name, number_t value);
 
-__CAPE_LIBEX   void               adbl_param_add__between_d  (CapeUdc params, const CapeString name, CapeDatetime* from, CapeDatetime* until);
+__CAPE_LIBEX   void          adbl_param_add__greater_than_d  (CapeUdc params, const CapeString name, const CapeDatetime* value);
+
+__CAPE_LIBEX   void          adbl_param_add__less_than_n     (CapeUdc params, const CapeString name, number_t value);
+
+__CAPE_LIBEX   void          adbl_param_add__less_than_d     (CapeUdc params, const CapeString name, const CapeDatetime* value);
+
+__CAPE_LIBEX   void          adbl_param_add__between_n       (CapeUdc params, const CapeString name, number_t from, number_t until);
+
+__CAPE_LIBEX   void          adbl_param_add__between_d       (CapeUdc params, const CapeString name, const CapeDatetime* from, const CapeDatetime* until);
 
 //=============================================================================
 

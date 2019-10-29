@@ -1,6 +1,7 @@
 #include "prepare.h"
 
 #include "adbl.h"
+#include "adbl_types.h"
 
 // cape includes
 #include "stc/cape_stream.h"
@@ -55,6 +56,7 @@ AdblPrepare adbl_prepare_new (CapeUdc* p_params, CapeUdc* p_values)
         case CAPE_UDC_STRING:
         case CAPE_UDC_BOOL:
         case CAPE_UDC_FLOAT:
+        case CAPE_UDC_DATETIME:
         case CAPE_UDC_NULL:
         case CAPE_UDC_NODE:
         {
@@ -521,6 +523,97 @@ number_t adbl_prepare_append_values (CapeStream stream, CapeUdc values)
 
 //-----------------------------------------------------------------------------
 
+void adbl_prepare_append_constraints__param (CapeStream stream, int ansi, const CapeString param_name, const CapeString table)
+{
+  if (ansi == TRUE)
+  {
+    cape_stream_append_str (stream, "\"" );
+    cape_stream_append_str (stream, table );
+    cape_stream_append_str (stream, "\".\"" );
+    cape_stream_append_str (stream, param_name);
+    cape_stream_append_c (stream, '\"');
+  }
+  else
+  {
+    cape_stream_append_str (stream, table );
+    cape_stream_append_str (stream, "." );
+    cape_stream_append_str (stream, param_name);   
+  }
+}
+
+//-----------------------------------------------------------------------------
+
+number_t adbl_prepare_append_constraints__node (CapeStream stream, int ansi, const CapeString param_name, const CapeString table, CapeUdcCursor* cursor)
+{
+  number_t ret = 0;
+  
+  switch (cape_udc_get_n (cursor->item, ADBL_SPECIAL__TYPE, 0))
+  {
+    case ADBL_TYPE__BETWEEN:
+    {
+      CapeUdc from_node = cape_udc_get (cursor->item, ADBL_SPECIAL__BETWEEN_FROM);
+      CapeUdc to_node = cape_udc_get (cursor->item, ADBL_SPECIAL__BETWEEN_TO);
+      
+      if (from_node && to_node)
+      {
+        if (cursor->position > 0)
+        {
+          cape_stream_append_str (stream, " AND ");
+        }
+        
+        adbl_prepare_append_constraints__param (stream, ansi, param_name, table);
+        cape_stream_append_str (stream, " BETWEEN ? AND ?" );
+        
+        ret = 2;            
+      }
+      
+      break;
+    }
+    case ADBL_TYPE__GREATER_THAN:
+    {
+      CapeUdc greater = cape_udc_get (cursor->item, ADBL_SPECIAL__GREATER);
+      
+      if (greater)
+      {
+        if (cursor->position > 0)
+        {
+          cape_stream_append_str (stream, " AND ");
+        }
+        
+        adbl_prepare_append_constraints__param (stream, ansi, param_name, table);
+        cape_stream_append_str (stream, " > ?" );
+        
+        ret = 1;            
+      }
+      
+      break;
+    }
+    case ADBL_TYPE__LESS_THAN:
+    {
+      CapeUdc greater = cape_udc_get (cursor->item, ADBL_SPECIAL__LESS);
+      
+      if (greater)
+      {
+        if (cursor->position > 0)
+        {
+          cape_stream_append_str (stream, " AND ");
+        }
+        
+        adbl_prepare_append_constraints__param (stream, ansi, param_name, table);
+        cape_stream_append_str (stream, " < ?" );
+        
+        ret = 1;            
+      }
+      
+      break;
+    }
+  }
+  
+  return ret;
+}
+
+//-----------------------------------------------------------------------------
+
 number_t adbl_prepare_append_constraints (CapeStream stream, int ansi, CapeUdc params, const char* table)
 {
   number_t used = 0;
@@ -537,48 +630,7 @@ number_t adbl_prepare_append_constraints (CapeStream stream, int ansi, CapeUdc p
       {
         case CAPE_UDC_NODE:
         {
-          // check what kind of special param we have
-          CapeUdc from_node = cape_udc_get (cursor->item, "__from");
-          CapeUdc to_node = cape_udc_get (cursor->item, "__to");
-          
-          if (from_node && to_node)
-          {
-            if (cursor->position > 0)
-            {
-              cape_stream_append_str (stream, " AND ");
-            }
-            
-            if (ansi == TRUE)
-            {
-              cape_stream_append_str (stream, "\"" );
-              cape_stream_append_str (stream, table );
-              cape_stream_append_str (stream, "\".\"" );
-              cape_stream_append_str (stream, param_name);
-              cape_stream_append_c (stream, '\"');
-            }
-            else
-            {
-              cape_stream_append_str (stream, table );
-              cape_stream_append_str (stream, "." );
-              cape_stream_append_str (stream, param_name);   
-            }
-            
-            switch (cape_udc_type (from_node))
-            {
-              case CAPE_UDC_DATETIME:
-              {
-                cape_stream_append_str (stream, " BETWEEN CAST(? AS DATE) AND CAST(? AS DATE)" );
-                break;
-              }
-              default:
-              {
-                cape_stream_append_str (stream, " BETWEEN ? AND ?" );
-                break;                
-              }
-            }
-            
-            used += 2;            
-          }
+          used += adbl_prepare_append_constraints__node (stream, ansi, param_name, table, cursor);
           
           break;
         }
@@ -589,21 +641,8 @@ number_t adbl_prepare_append_constraints (CapeStream stream, int ansi, CapeUdc p
             cape_stream_append_str (stream, " AND ");
           }
           
-          if (ansi == TRUE)
-          {
-            cape_stream_append_str (stream, "\"" );
-            cape_stream_append_str (stream, table );
-            cape_stream_append_str (stream, "\".\"" );
-            cape_stream_append_str (stream, param_name);
-            cape_stream_append_str (stream, "\" = ?" );
-          }
-          else
-          {
-            cape_stream_append_str (stream, table );
-            cape_stream_append_str (stream, "." );
-            cape_stream_append_str (stream, param_name);   
-            cape_stream_append_str (stream, " = ?" );
-          }
+          adbl_prepare_append_constraints__param (stream, ansi, param_name, table);
+          cape_stream_append_str (stream, " = ?" );
           
           used++;
           
