@@ -118,8 +118,6 @@ void adbl_bindvars_set (AdblBindVars self, CapeUdc item, int check_for_specials)
       {
         MYSQL_BIND* bind = &(self->binds[self->pos]);
         
-        printf ("SET BIND NUMBER: %li\n", cape_udc_n (item, 0));
-        
         bind->buffer_type = MYSQL_TYPE_LONG;
         bind->buffer = cape_udc_data (item);
         bind->buffer_length = 0;
@@ -409,6 +407,20 @@ void adbl_bind_add (MYSQL_BIND* bind, CapeUdc item)
       
       break;
     }
+    case CAPE_UDC_DATETIME:
+    {
+      bind->buffer_type = MYSQL_TYPE_DATETIME;
+      bind->buffer = CAPE_ALLOC (sizeof(MYSQL_TIME));
+      bind->buffer_length = 0;
+      bind->is_null = CAPE_ALLOC (sizeof(MYSQL_TIME));
+      bind->length = 0;
+      bind->error = 0; 
+      bind->is_unsigned = 0;
+      
+      bind->pack_length = 1;
+      
+      break;
+    }
     case CAPE_UDC_NULL:
     {
       bind->buffer_type = MYSQL_TYPE_NULL;
@@ -482,6 +494,27 @@ int adbl_bind_get (MYSQL_BIND* bind, CapeUdc item)
       number_t* h = bind->buffer;      
       cape_udc_set_b (item, *h);
       
+      break;
+    }
+    case CAPE_UDC_DATETIME:
+    {
+      MYSQL_TIME* h = bind->buffer;
+     
+      CapeDatetime dt;
+      
+      dt.year = h->year;
+      dt.month = h->month;
+      dt.day = h->day;
+      
+      dt.hour = h->hour;
+      dt.minute = h->minute;
+      dt.sec = h->second;
+      
+      dt.usec = h->second_part;
+      dt.msec = dt.usec / 1000;
+      
+      cape_udc_set_d (item, &dt);
+
       break;
     }
     case CAPE_UDC_LIST:

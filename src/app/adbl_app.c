@@ -19,6 +19,10 @@ int main (int argc, char *argv[])
   AdblSession session = NULL;
   AdblTrx trx = NULL;
   
+  CapeDatetime dt_start;
+  
+  cape_datetime_utc (&dt_start);
+  
   ctx = adbl_ctx_new ("pvd_mysql", "adbl2_mysql", err);
   if (ctx == NULL)
   {
@@ -132,6 +136,43 @@ int main (int argc, char *argv[])
     if (results)
     {
       printf ("amount of result: %li\n", cape_udc_size (results));
+      
+      cape_udc_del (&results);
+    }
+  }
+
+  
+  
+  // fetch again with params
+  {
+    CapeUdc results;
+    
+    CapeUdc params = cape_udc_new (CAPE_UDC_NODE, NULL);
+    CapeUdc columns = cape_udc_new (CAPE_UDC_NODE, NULL);
+    
+    
+    adbl_param_add__greater_than_d (params, "d01", &dt_start);
+    
+    // define the columns we want to fetch
+    cape_udc_add_n              (columns, "fk01", 0);
+    cape_udc_add_s_cp           (columns, "col01", NULL);
+    cape_udc_add_s_cp           (columns, "col02", NULL);
+    cape_udc_add_d              (columns, "d01", NULL);
+    
+    results = adbl_session_query (session, "test_table01", &params, &columns, err);
+    
+    if (results)
+    {
+      CapeUdcCursor* cursor = cape_udc_cursor_new (results, CAPE_DIRECTION_FORW);
+
+      printf ("amount of result: %li\n", cape_udc_size (results));
+      
+      while (cape_udc_cursor_next (cursor))
+      {
+        cape_udc_print (cursor->item);        
+      }
+      
+      cape_udc_cursor_del (&cursor);
       
       cape_udc_del (&results);
     }
