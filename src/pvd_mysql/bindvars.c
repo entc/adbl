@@ -613,10 +613,10 @@ int adbl_bindvars_add_from_node (AdblBindVars self, CapeUdc node, CapeErr err)
   
   res = CAPE_ERR_NONE;
   
-  exit:
+exit:
   
   cape_udc_cursor_del (&cursor);
-  return CAPE_ERR_NONE;
+  return res;
 }
 
 //------------------------------------------------------------------------------------------------------
