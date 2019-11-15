@@ -21,9 +21,14 @@ static int init_status = 0;
 
 #include <windows.h>
 
+// fix for linking mariadb library
+#pragma comment(lib, "Ws2_32.lib")
+#pragma comment(lib, "shlwapi.lib")
+
 //------------------------------------------------------------------------------------------------------
 
 // this might work?
+/*
 extern "C" BOOL WINAPI DllMain (HINSTANCE const instance, DWORD const reason, LPVOID const reserved)
 {
   // Perform actions based on the reason for calling.
@@ -61,7 +66,7 @@ extern "C" BOOL WINAPI DllMain (HINSTANCE const instance, DWORD const reason, LP
   
   return TRUE;  // Successful DLL_PROCESS_ATTACH.
 }
-
+*/
 //------------------------------------------------------------------------------------------------------
 
 #else
@@ -419,7 +424,7 @@ number_t __STDCALL adbl_pvd_ins (AdblPvdSession self, const char* table, CapeUdc
 
 
   // get last inserted id
-  last_insert_id = mysql_insert_id (self->mysql);
+  last_insert_id = (number_t)mysql_insert_id (self->mysql);
     
 exit_and_cleanup:
   
@@ -641,7 +646,7 @@ number_t __STDCALL adbl_pvd_ins_or_set (AdblPvdSession self, const char* table, 
   }
   
   // get last inserted id
-  last_insert_id = mysql_insert_id (self->mysql);
+  last_insert_id = (number_t)mysql_insert_id (self->mysql);
   
 exit_and_cleanup:
   

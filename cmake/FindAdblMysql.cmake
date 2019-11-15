@@ -10,7 +10,7 @@ if (NOT MYSQL_FOUND)
 
     find_path (MYSQL_INCLUDES
       NAMES mysql.h
-      HINTS "/opt/local/include/mariadb/mysql/"
+      HINTS "/opt/local/include/mariadb/mysql/" "C:\\Program Files\\MariaDB 10.4\\include\\mysql"
       PATH_SUFFIXES mariadb
     )
     
@@ -32,7 +32,17 @@ if (NOT MYSQL_FOUND)
     find_library (MYSQL_LIBRARY_01 mysqlclient 
       HINTS "/opt/local/lib/mariadb/mysql/" "/usr/lib/"
     )
+
+    if (MYSQL_LIBRARY_01)
     
+    else ()
+    
+    find_library (MYSQL_LIBRARY_01 mariadbclient 
+      HINTS "/opt/local/lib/mariadb/mysql/" "/usr/lib/" "C:\\Program Files\\MariaDB 10.4\\lib"
+    )
+
+    endif ()
+
     # Correct Symlinks
     if(IS_SYMLINK ${MYSQL_LIBRARY_01})
       get_filename_component(TMP ${MYSQL_LIBRARY_01} REALPATH)
