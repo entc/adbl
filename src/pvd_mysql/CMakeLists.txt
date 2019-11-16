@@ -9,6 +9,11 @@ find_package(AdblMysql QUIET)
 
 IF(MYSQL_FOUND)
 
+if (MSVC)
+  find_package(Zlib REQUIRED)
+  message (STATUS "ZLIB_LIBRARIES = ${ZLIB_LIBRARIES}")
+endif()
+ 
   INCLUDE_DIRECTORIES( "../core" ${MYSQL_INCLUDES})
 
   SET (CORE_SOURCES
@@ -23,7 +28,7 @@ IF(MYSQL_FOUND)
   )
 
   ADD_LIBRARY(adbl2_mysql SHARED ${CORE_SOURCES} ${CORE_HEADERS})
-  TARGET_LINK_LIBRARIES( adbl2_mysql adbl2 cape ${MYSQL_LIBRARIES})
+  TARGET_LINK_LIBRARIES( adbl2_mysql adbl2 cape ${MYSQL_LIBRARIES} ${ZLIB_LIBRARIES})
 
   install (TARGETS adbl2_mysql DESTINATION adbl)
   
