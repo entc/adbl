@@ -150,36 +150,39 @@ int adbl_prepare_init (AdblPrepare self, AdblPvdSession session, MYSQL* mysql, C
 
 void adbl_prepare_del (AdblPrepare* p_self)
 {
-  AdblPrepare self = *p_self;
-  
-  if (self->params)
+  if (*p_self)
   {
-    cape_udc_del (&(self->params));
-  }
-  
-  if (self->values)
-  {
-    cape_udc_del (&(self->values));
-  }
-  
-  if (self->bindsParams)
-  {
-    adbl_bindvars_del (&(self->bindsParams));    
-  }
-  
-  if (self->bindsValues)
-  {
-    adbl_bindvars_del (&(self->bindsValues));    
-  }
-  
-  if (self->stmt)
-  {
-    mysql_stmt_free_result (self->stmt);
+    AdblPrepare self = *p_self;
     
-    mysql_stmt_close (self->stmt);
+    if (self->params)
+    {
+      cape_udc_del (&(self->params));
+    }
+    
+    if (self->values)
+    {
+      cape_udc_del (&(self->values));
+    }
+    
+    if (self->bindsParams)
+    {
+      adbl_bindvars_del (&(self->bindsParams));
+    }
+    
+    if (self->bindsValues)
+    {
+      adbl_bindvars_del (&(self->bindsValues));
+    }
+    
+    if (self->stmt)
+    {
+      mysql_stmt_free_result (self->stmt);
+      
+      mysql_stmt_close (self->stmt);
+    }
+    
+    CAPE_DEL(p_self, struct AdblPrepare_s);
   }
-  
-  CAPE_DEL(p_self, struct AdblPrepare_s);
 }
 
 //-----------------------------------------------------------------------------

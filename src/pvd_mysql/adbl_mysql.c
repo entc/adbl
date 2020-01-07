@@ -358,9 +358,10 @@ number_t __STDCALL adbl_pvd_ins (AdblPvdSession self, const char* table, CapeUdc
 {
   int res;
   number_t last_insert_id = 0;  
-  
-  AdblPrepare pre = adbl_prepare_new (NULL, p_values);
 
+  // local objects
+  AdblPrepare pre = NULL;
+  
   // some prechecks
   if (NULL == p_values)
   {
@@ -375,6 +376,8 @@ number_t __STDCALL adbl_pvd_ins (AdblPvdSession self, const char* table, CapeUdc
     goto exit_and_cleanup;
   }
   
+  pre = adbl_prepare_new (NULL, p_values);
+
   // run the procedure
   {
     int i;
@@ -525,7 +528,8 @@ int __STDCALL adbl_pvd_set (AdblPvdSession self, const char* table, CapeUdc* p_p
 {
   int res;
     
-  AdblPrepare pre = adbl_prepare_new (p_params, p_values);
+  // local objects
+  AdblPrepare pre = NULL;
   
   // some prechecks
   if (NULL == p_values)
@@ -541,6 +545,8 @@ int __STDCALL adbl_pvd_set (AdblPvdSession self, const char* table, CapeUdc* p_p
     goto exit_and_cleanup;
   }
   
+  pre = adbl_prepare_new (p_params, p_values);
+
   // run the procedure
   {
     int i;
@@ -614,8 +620,9 @@ number_t __STDCALL adbl_pvd_ins_or_set (AdblPvdSession self, const char* table, 
   int res;
   number_t last_insert_id = 0;
 
-  AdblPrepare pre = adbl_prepare_new (p_params, p_values);
-
+  // local objects
+  AdblPrepare pre = NULL;
+  
   // some prechecks
   if (NULL == p_values)
   {
@@ -630,6 +637,8 @@ number_t __STDCALL adbl_pvd_ins_or_set (AdblPvdSession self, const char* table, 
     goto exit_and_cleanup;
   }
   
+  pre = adbl_prepare_new (p_params, p_values);
+
   // run the procedure
   {
     int i;
