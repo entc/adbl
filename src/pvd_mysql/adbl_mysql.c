@@ -361,6 +361,20 @@ number_t __STDCALL adbl_pvd_ins (AdblPvdSession self, const char* table, CapeUdc
   
   AdblPrepare pre = adbl_prepare_new (NULL, p_values);
 
+  // some prechecks
+  if (NULL == p_values)
+  {
+    res = cape_err_set (err, CAPE_ERR_MISSING_PARAM, "values was not provided");
+    goto exit_and_cleanup;
+  }
+  
+  // some prechecks
+  if (0 == cape_udc_size (*p_values))
+  {
+    res = CAPE_ERR_NONE;
+    goto exit_and_cleanup;
+  }
+  
   // run the procedure
   {
     int i;
@@ -510,7 +524,22 @@ exit_and_cleanup:
 int __STDCALL adbl_pvd_set (AdblPvdSession self, const char* table, CapeUdc* p_params, CapeUdc* p_values, CapeErr err)
 {
   int res;
+    
   AdblPrepare pre = adbl_prepare_new (p_params, p_values);
+  
+  // some prechecks
+  if (NULL == p_values)
+  {
+    res = cape_err_set (err, CAPE_ERR_MISSING_PARAM, "values was not provided");
+    goto exit_and_cleanup;
+  }
+  
+  // some prechecks
+  if (0 == cape_udc_size (*p_values))
+  {
+    res = CAPE_ERR_NONE;
+    goto exit_and_cleanup;
+  }
   
   // run the procedure
   {
@@ -587,6 +616,20 @@ number_t __STDCALL adbl_pvd_ins_or_set (AdblPvdSession self, const char* table, 
 
   AdblPrepare pre = adbl_prepare_new (p_params, p_values);
 
+  // some prechecks
+  if (NULL == p_values)
+  {
+    res = cape_err_set (err, CAPE_ERR_MISSING_PARAM, "values was not provided");
+    goto exit_and_cleanup;
+  }
+  
+  // some prechecks
+  if (0 == cape_udc_size (*p_values))
+  {
+    res = CAPE_ERR_NONE;
+    goto exit_and_cleanup;
+  }
+  
   // run the procedure
   {
     int i;
