@@ -26,6 +26,8 @@ typedef void      (__STDCALL *fct_adbl_pvd_cursor_del)    (void**);
 typedef int       (__STDCALL *fct_adbl_pvd_cursor_next)   (void*);
 typedef CapeUdc   (__STDCALL *fct_adbl_pvd_cursor_get)    (void*);
 
+typedef int       (__STDCALL *fct_adbl_pvd_atomic_dec)    (void*, const char* table, CapeUdc* p_params, const CapeString atomic_value, CapeErr);
+
 //=============================================================================
 
 typedef struct
@@ -44,6 +46,7 @@ typedef struct
   fct_adbl_pvd_cursor_del     pvd_cursor_del;
   fct_adbl_pvd_cursor_next    pvd_cursor_next;
   fct_adbl_pvd_cursor_get     pvd_cursor_get;
+  fct_adbl_pvd_atomic_dec     pvd_atomic_dec;
   
 } AdblPvd;
 
@@ -156,7 +159,13 @@ AdblCtx adbl_ctx_new (const char* path, const char* backend, CapeErr err)
   {
     goto exit;    
   }
-  
+
+  pvd.pvd_atomic_dec = cape_dl_funct (hlib, "adbl_pvd_atomic_dec", err);
+  if (pvd.pvd_atomic_dec == NULL)
+  {
+    goto exit;
+  }
+
   {
     AdblCtx self = CAPE_NEW(struct AdblCtx_s);
     
@@ -253,6 +262,13 @@ void adbl_session_close (AdblSession* p_self)
 CapeUdc adbl_session_query (AdblSession self, const char* table, CapeUdc* p_params, CapeUdc* p_values, CapeErr err)
 {
   return self->pvd->pvd_get (self->session, table, p_params, p_values, err);
+}
+
+//-----------------------------------------------------------------------------
+
+number_t adbl_session_atomic_dec (AdblSession self, const char* table, CapeUdc* p_params, const CapeString atomic_value, CapeErr err)
+{
+  return self->pvd->pvd_atomic_dec (self->session, table, p_params, atomic_value, err);
 }
 
 //=============================================================================
