@@ -38,7 +38,7 @@ int main (int argc, char *argv[])
     
     cape_udc_add_s_cp (properties, "user", "test");
     cape_udc_add_s_cp (properties, "pass", "test");
-
+    
     session = adbl_session_open (ctx, properties, err);
     
     cape_udc_del (&properties);
@@ -51,70 +51,143 @@ int main (int argc, char *argv[])
     }
   }
   
-  trx = adbl_trx_new (session, err);
-  if (trx == NULL)
-  {
-    goto exit;
-  }
   
-  // fetch
   {
-    CapeUdc results;
-
-    //CapeUdc params = cape_udc_new (CAPE_UDC_NODE, NULL);
-    
-    
-    //cape_udc_add_n       (params, "id", 1);
-    
-    CapeUdc columns = cape_udc_new (CAPE_UDC_NODE, NULL);
-    
-    
-    // define the columns we want to fetch
-    cape_udc_add_n       (columns, "fk01", 0);
-    cape_udc_add_s_cp    (columns, "col01", NULL);
-    cape_udc_add_s_cp    (columns, "col02", NULL);
-    
-    results = adbl_trx_query (trx, "test_table01", NULL, &columns, err);
-    
-    if (results)
+    trx = adbl_trx_new (session, err);
+    if (trx == NULL)
     {
-      printf ("amount of result: %li\n", cape_udc_size (results));
-      
-      cape_udc_del (&results);
+      goto exit;
     }
-  }
-  
-  // insert
-  for (i = 0; i < 2; i++)
-  {
-    CapeUdc values = cape_udc_new (CAPE_UDC_NODE, NULL);
     
-    // define the columns we want to insert
-    cape_udc_add_n       (values, "id", ADBL_AUTO_INCREMENT);   // this column is an auto increment column
-    cape_udc_add_n       (values, "fk01", 42);
-
-    CapeString h = cape_str_uuid ();
-    cape_udc_add_s_mv    (values, "col01", &h);
-
-    cape_udc_add_s_cp    (values, "col02", "xxxx");
-    
-    
-    CapeDatetime dt;    
-    cape_datetime_utc (&dt);
-
-    cape_udc_add_d       (values, "d01",  &dt);
-    
-    last_inserted_row = adbl_trx_insert (trx, "test_table01", &values, err);
-    
-    if (last_inserted_row <= 0)
+    // fetch
     {
-      printf ("ERROR: %s\n", cape_err_text(err));
+      CapeUdc results;
+      
+      //CapeUdc params = cape_udc_new (CAPE_UDC_NODE, NULL);
       
       
+      //cape_udc_add_n       (params, "id", 1);
+      
+      CapeUdc columns = cape_udc_new (CAPE_UDC_NODE, NULL);
+      
+      
+      // define the columns we want to fetch
+      cape_udc_add_n       (columns, "fk01", 0);
+      cape_udc_add_s_cp    (columns, "col01", NULL);
+      cape_udc_add_s_cp    (columns, "col02", NULL);
+      
+      results = adbl_trx_query (trx, "test_table01", NULL, &columns, err);
+      
+      if (results)
+      {
+        printf ("amount of result: %li\n", cape_udc_size (results));
+        
+        cape_udc_del (&results);
+      }
     }
+    
+    // insert
+    for (i = 0; i < 2; i++)
+    {
+      CapeUdc values = cape_udc_new (CAPE_UDC_NODE, NULL);
+      
+      // define the columns we want to insert
+      cape_udc_add_n       (values, "id", ADBL_AUTO_INCREMENT);   // this column is an auto increment column
+      cape_udc_add_n       (values, "fk01", 42);
+      
+      CapeString h = cape_str_uuid ();
+      cape_udc_add_s_mv    (values, "col01", &h);
+      
+      cape_udc_add_s_cp    (values, "col02", "xxxx");
+      
+      
+      CapeDatetime dt;    
+      cape_datetime_utc (&dt);
+      
+      cape_udc_add_d       (values, "d01",  &dt);
+      
+      last_inserted_row = adbl_trx_insert (trx, "test_table01", &values, err);
+      
+      if (last_inserted_row <= 0)
+      {
+        printf ("ERROR: %s\n", cape_err_text(err));
+        
+        
+      }
+    }
+    
+    adbl_trx_commit (&trx, err);
   }
   
-  adbl_trx_commit (&trx, err);
+  
+  {
+    trx = adbl_trx_new (session, err);
+    if (trx == NULL)
+    {
+      goto exit;
+    }
+    
+    // fetch
+    {
+      CapeUdc results;
+      
+      //CapeUdc params = cape_udc_new (CAPE_UDC_NODE, NULL);
+      
+      
+      //cape_udc_add_n       (params, "id", 1);
+      
+      CapeUdc columns = cape_udc_new (CAPE_UDC_NODE, NULL);
+      
+      
+      // define the columns we want to fetch
+      cape_udc_add_n       (columns, "fk01", 0);
+      cape_udc_add_s_cp    (columns, "col01", NULL);
+      cape_udc_add_s_cp    (columns, "col02", NULL);
+      
+      results = adbl_trx_query (trx, "test_table01", NULL, &columns, err);
+      
+      if (results)
+      {
+        printf ("amount of result: %li\n", cape_udc_size (results));
+        
+        cape_udc_del (&results);
+      }
+    }
+    
+    // insert
+    for (i = 0; i < 2; i++)
+    {
+      CapeUdc values = cape_udc_new (CAPE_UDC_NODE, NULL);
+      
+      // define the columns we want to insert
+      cape_udc_add_n       (values, "id", ADBL_AUTO_INCREMENT);   // this column is an auto increment column
+      cape_udc_add_n       (values, "fk01", 42);
+      
+      CapeString h = cape_str_uuid ();
+      cape_udc_add_s_mv    (values, "col01", &h);
+      
+      cape_udc_add_s_cp    (values, "col02", "xxxx");
+      
+      
+      CapeDatetime dt;    
+      cape_datetime_utc (&dt);
+      
+      cape_udc_add_d       (values, "d01",  &dt);
+      
+      last_inserted_row = adbl_trx_insert (trx, "test_table01", &values, err);
+      
+      if (last_inserted_row <= 0)
+      {
+        printf ("ERROR: %s\n", cape_err_text(err));
+        
+        
+      }
+    }
+    
+    adbl_trx_commit (&trx, err);
+  }
+  
+  
   
   // fetch again with params
   {
