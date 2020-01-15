@@ -384,8 +384,25 @@ number_t __STDCALL adbl_pvd_ins (AdblPvdSession self, const char* table, CapeUdc
 {
   int res;
   number_t last_insert_id = 0;  
+
+  // local objects
+  AdblPrepare pre = NULL;
   
-  AdblPrepare pre = adbl_prepare_new (NULL, p_values);
+  // some prechecks
+  if (NULL == p_values)
+  {
+    res = cape_err_set (err, CAPE_ERR_MISSING_PARAM, "values was not provided");
+    goto exit_and_cleanup;
+  }
+  
+  // some prechecks
+  if (0 == cape_udc_size (*p_values))
+  {
+    res = CAPE_ERR_NONE;
+    goto exit_and_cleanup;
+  }
+  
+  pre = adbl_prepare_new (NULL, p_values);
 
   // run the procedure
   {
@@ -536,8 +553,26 @@ exit_and_cleanup:
 int __STDCALL adbl_pvd_set (AdblPvdSession self, const char* table, CapeUdc* p_params, CapeUdc* p_values, CapeErr err)
 {
   int res;
-  AdblPrepare pre = adbl_prepare_new (p_params, p_values);
+    
+  // local objects
+  AdblPrepare pre = NULL;
   
+  // some prechecks
+  if (NULL == p_values)
+  {
+    res = cape_err_set (err, CAPE_ERR_MISSING_PARAM, "values was not provided");
+    goto exit_and_cleanup;
+  }
+  
+  // some prechecks
+  if (0 == cape_udc_size (*p_values))
+  {
+    res = CAPE_ERR_NONE;
+    goto exit_and_cleanup;
+  }
+  
+  pre = adbl_prepare_new (p_params, p_values);
+
   // run the procedure
   {
     int i;
@@ -611,7 +646,24 @@ number_t __STDCALL adbl_pvd_ins_or_set (AdblPvdSession self, const char* table, 
   int res;
   number_t last_insert_id = 0;
 
-  AdblPrepare pre = adbl_prepare_new (p_params, p_values);
+  // local objects
+  AdblPrepare pre = NULL;
+  
+  // some prechecks
+  if (NULL == p_values)
+  {
+    res = cape_err_set (err, CAPE_ERR_MISSING_PARAM, "values was not provided");
+    goto exit_and_cleanup;
+  }
+  
+  // some prechecks
+  if (0 == cape_udc_size (*p_values))
+  {
+    res = CAPE_ERR_NONE;
+    goto exit_and_cleanup;
+  }
+  
+  pre = adbl_prepare_new (p_params, p_values);
 
   // run the procedure
   {
@@ -733,7 +785,6 @@ int __STDCALL adbl_pvd_rollback (AdblPvdSession self, CapeErr err)
 AdblPvdCursor __STDCALL adbl_pvd_cursor_new (AdblPvdSession self, const char* table, CapeUdc* p_params, CapeUdc* p_values, CapeErr err)
 {
   int res;
-
   AdblPrepare pre = adbl_prepare_new (p_params, p_values);
   
   // run the procedure
@@ -898,6 +949,81 @@ CapeUdc __STDCALL adbl_pvd_cursor_get (AdblPvdCursor self)
   }
   
   return result_row;
+}
+
+//-----------------------------------------------------------------------------
+
+number_t __STDCALL adbl_pvd_atomic_dec (AdblPvdSession self, const char* table, CapeUdc* p_params, const CapeString atomic_value, CapeErr err)
+{
+  number_t ret = -1;
+  
+  int res;
+  AdblPrepare pre = adbl_prepare_new (p_params, NULL);
+
+  // run the procedure
+  {
+    int i;
+    for (i = 0; i < self->max_retries; i++)
+    {
+      res = adbl_prepare_init (pre, self, self->mysql, err);
+      if (res)
+      {
+        if (res == CAPE_ERR_CONTINUE)
+        {
+          continue;
+        }
+        
+        cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql atomic dec", cape_err_text(err));
+        goto exit_and_cleanup;
+      }
+      
+      res = adbl_prepare_statement_atodec (pre, self, self->schema, table, self->ansi_quotes, atomic_value, err);
+      if (res)
+      {
+        if (res == CAPE_ERR_CONTINUE)
+        {
+          continue;
+        }
+        
+        cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql atomic dec", cape_err_text(err));
+        goto exit_and_cleanup;
+      }
+      
+      res = adbl_prepare_binds_params (pre, err);
+      if (res)
+      {
+        if (res == CAPE_ERR_CONTINUE)
+        {
+          continue;
+        }
+        
+        cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql atomic dec", cape_err_text(err));
+        goto exit_and_cleanup;
+      }
+      
+      res = adbl_prepare_execute (pre, self, err);
+      if (res)
+      {
+        if (res == CAPE_ERR_CONTINUE)
+        {
+          continue;
+        }
+        
+        goto exit_and_cleanup;
+      }
+
+      // done
+      break;
+    }
+  }
+  
+  // get last inserted id
+  ret = (number_t)mysql_insert_id (self->mysql);
+
+exit_and_cleanup:
+  
+  adbl_prepare_del (&pre);
+  return ret;
 }
 
 //-----------------------------------------------------------------------------

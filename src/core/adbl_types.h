@@ -37,6 +37,8 @@ typedef void      (__STDCALL *fct_adbl_pvd_cursor_del)    (void**);
 typedef int       (__STDCALL *fct_adbl_pvd_cursor_next)   (void*);
 typedef CapeUdc   (__STDCALL *fct_adbl_pvd_cursor_get)    (void*);
 
+typedef int       (__STDCALL *fct_adbl_pvd_atomic_dec)    (void*, const char* table, CapeUdc* p_params, const CapeString atomic_value, CapeErr);
+
 //-----------------------------------------------------------------------------
 
 typedef struct
@@ -56,6 +58,7 @@ typedef struct
   fct_adbl_pvd_cursor_del     pvd_cursor_del;
   fct_adbl_pvd_cursor_next    pvd_cursor_next;
   fct_adbl_pvd_cursor_get     pvd_cursor_get;
+  fct_adbl_pvd_atomic_dec     pvd_atomic_dec;
   
 } AdblPvd;
 
