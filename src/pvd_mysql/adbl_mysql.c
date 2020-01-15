@@ -280,17 +280,43 @@ int adbl_check_error (AdblPvdSession self, unsigned int error_code, CapeErr err)
 AdblPvdSession __STDCALL adbl_pvd_open (CapeUdc cp, CapeErr err)
 {
   int res;
-  AdblPvdSession self = CAPE_NEW(struct AdblPvdSession_s);
+  AdblPvdSession self = CAPE_NEW (struct AdblPvdSession_s);
   
   self->max_retries = 5;
-  
   self->ansi_quotes = FALSE;
+  
+  self->schema = cape_str_cp (cape_udc_get_s (cp, "schema", NULL));
+  self->cp = cape_udc_cp (cp);
   
   // init mysql
   self->mysql = mysql_init (NULL);
   
-  self->schema = cape_str_cp (cape_udc_get_s (cp, "schema", NULL));
-  self->cp = cape_udc_cp (cp);
+  // the initial connect should work
+  res = adbl_pvd_connect (self, err);
+  if (res)
+  {
+    adbl_pvd_close (&self);
+    return NULL;
+  }
+  
+  return self;
+}
+
+//-----------------------------------------------------------------------------
+
+AdblPvdSession __STDCALL adbl_pvd_clone (AdblPvdSession rhs, CapeErr err)
+{
+  int res;
+  AdblPvdSession self = CAPE_NEW (struct AdblPvdSession_s);
+  
+  self->max_retries = 5;
+  self->ansi_quotes = FALSE;
+    
+  self->schema = cape_str_cp (rhs->schema);
+  self->cp = cape_udc_cp (rhs->cp);
+  
+  // init mysql
+  self->mysql = mysql_init (NULL);
   
   // the initial connect should work
   res = adbl_pvd_connect (self, err);
@@ -311,8 +337,8 @@ void __STDCALL adbl_pvd_close (AdblPvdSession* p_self)
   
   cape_log_msg (CAPE_LL_DEBUG, "ADBL", "mysql", "session closed");
   
-  cape_str_del (&(self->schema));
   cape_udc_del (&(self->cp));
+  cape_str_del (&(self->schema));
   
   mysql_close (self->mysql);
   
