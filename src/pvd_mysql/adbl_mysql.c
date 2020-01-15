@@ -994,6 +994,9 @@ number_t __STDCALL adbl_pvd_atomic_dec (AdblPvdSession self, const char* table, 
   // get last inserted id
   ret = (number_t)mysql_insert_id (self->mysql);
 
+  // to be on the safe side, clear the error aswell
+  cape_err_clr (err);
+  
 exit_and_cleanup:
   
   adbl_prepare_del (&pre);
