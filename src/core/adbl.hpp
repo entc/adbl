@@ -62,6 +62,11 @@ namespace adbl {
     {
       cape::ErrHolder errh;
       
+      if (NULL == m_session)
+      {
+        throw std::runtime_error ("ADBL-session was not initialized");
+      }
+      
       // transfer ownership
       CapeUdc c_values = values.release ();
       
@@ -80,6 +85,11 @@ namespace adbl {
     cape::Udc query (const char* table, cape::Udc& params, cape::Udc& values)
     {
       cape::ErrHolder errh;
+      
+      if (NULL == m_session)
+      {
+        throw std::runtime_error ("ADBL-session was not initialized");
+      }
       
       // transfer ownership
       CapeUdc c_params = params.release ();
@@ -145,6 +155,11 @@ namespace adbl {
     void start ()
     {
       cape::ErrHolder errh;
+      
+      if (NULL == m_session)
+      {
+        throw std::runtime_error ("ADBL-session was not initialized");
+      }
       
       m_trx = adbl_trx_new (m_session, errh.err);
       

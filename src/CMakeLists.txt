@@ -6,6 +6,7 @@ SET(CMAKE_BUILD_TYPE Debug)
 
 SET(ADBL_CORE_SOURCES
   core/adbl.c
+  core/adbl_pool.c
 )
 
 SET(ADBL_CORE_HEADERS

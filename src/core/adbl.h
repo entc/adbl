@@ -36,6 +36,9 @@ __CAPE_LIBEX   void               adbl_session_close         (AdblSession*);
 
 __CAPE_LIBEX   CapeUdc            adbl_session_query         (AdblSession, const char* table, CapeUdc* p_params, CapeUdc* p_values, CapeErr);
 
+                                  /* decreases a value of a column by 1 in case the value > 1, the result will be returned or an error if not possible */
+__CAPE_LIBEX   number_t           adbl_session_atomic_dec    (AdblSession, const char* table, CapeUdc* p_params, const CapeString atomic_value, CapeErr);
+
 //=============================================================================
 
 struct AdblTrx_s; typedef struct AdblTrx_s* AdblTrx;

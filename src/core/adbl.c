@@ -1,5 +1,6 @@
 #include "adbl.h" 
 #include "adbl_types.h"
+#include "adbl_pool.h"
 
 // cape includes
 #include "sys/cape_dl.h"
@@ -7,54 +8,13 @@
 #include "sys/cape_log.h"
 #include "fmt/cape_json.h"
 
-//=============================================================================
-
-typedef void*     (__STDCALL *fct_adbl_pvd_open)          (CapeUdc, CapeErr);
-typedef void      (__STDCALL *fct_adbl_pvd_close)         (void**);
-typedef int       (__STDCALL *fct_adbl_pvd_begin)         (void*, CapeErr);
-typedef int       (__STDCALL *fct_adbl_pvd_commit)        (void*, CapeErr);
-typedef int       (__STDCALL *fct_adbl_pvd_rollback)      (void*, CapeErr);
-
-typedef CapeUdc   (__STDCALL *fct_adbl_pvd_get)           (void*, const char* table, CapeUdc* p_params, CapeUdc* p_values, CapeErr);
-typedef number_t  (__STDCALL *fct_adbl_pvd_ins)           (void*, const char* table, CapeUdc* p_values, CapeErr);
-typedef int       (__STDCALL *fct_adbl_pvd_set)           (void*, const char* table, CapeUdc* p_params, CapeUdc* p_values, CapeErr);
-typedef int       (__STDCALL *fct_adbl_pvd_del)           (void*, const char* table, CapeUdc* p_params, CapeErr);
-typedef number_t  (__STDCALL *fct_adbl_pvd_ins_or_set)    (void*, const char* table, CapeUdc* p_params, CapeUdc* p_values, CapeErr);
-
-typedef void*     (__STDCALL *fct_adbl_pvd_cursor_new)    (void*, const char* table, CapeUdc* p_params, CapeUdc* p_values, CapeErr);
-typedef void      (__STDCALL *fct_adbl_pvd_cursor_del)    (void**);
-typedef int       (__STDCALL *fct_adbl_pvd_cursor_next)   (void*);
-typedef CapeUdc   (__STDCALL *fct_adbl_pvd_cursor_get)    (void*);
-
-//=============================================================================
-
-typedef struct
-{
-  fct_adbl_pvd_open           pvd_open;
-  fct_adbl_pvd_close          pvd_close;
-  fct_adbl_pvd_begin          pvd_begin;
-  fct_adbl_pvd_commit         pvd_commit;
-  fct_adbl_pvd_rollback       pvd_rollback;
-  fct_adbl_pvd_get            pvd_get;
-  fct_adbl_pvd_ins            pvd_ins;
-  fct_adbl_pvd_set            pvd_set;
-  fct_adbl_pvd_del            pvd_del;
-  fct_adbl_pvd_ins_or_set     pvd_ins_or_set;
-  fct_adbl_pvd_cursor_new     pvd_cursor_new;
-  fct_adbl_pvd_cursor_del     pvd_cursor_del;
-  fct_adbl_pvd_cursor_next    pvd_cursor_next;
-  fct_adbl_pvd_cursor_get     pvd_cursor_get;
-  
-} AdblPvd;
-
-//=============================================================================
+//-----------------------------------------------------------------------------
 
 struct AdblCtx_s
 {
   CapeDl hlib;  
   
   AdblPvd pvd;
-  
 };
 
 //-----------------------------------------------------------------------------
@@ -79,6 +39,12 @@ AdblCtx adbl_ctx_new (const char* path, const char* backend, CapeErr err)
     goto exit;    
   }
 
+  pvd.pvd_clone = cape_dl_funct (hlib, "adbl_pvd_clone", err);
+  if (pvd.pvd_clone == NULL)
+  {
+    goto exit;    
+  }
+  
   pvd.pvd_close = cape_dl_funct (hlib, "adbl_pvd_close", err);
   if (pvd.pvd_close == NULL)
   {
@@ -156,7 +122,13 @@ AdblCtx adbl_ctx_new (const char* path, const char* backend, CapeErr err)
   {
     goto exit;    
   }
-  
+
+  pvd.pvd_atomic_dec = cape_dl_funct (hlib, "adbl_pvd_atomic_dec", err);
+  if (pvd.pvd_atomic_dec == NULL)
+  {
+    goto exit;
+  }
+
   {
     AdblCtx self = CAPE_NEW(struct AdblCtx_s);
     
@@ -178,11 +150,14 @@ exit:
 
 void adbl_ctx_del (AdblCtx* p_self)
 {
-  AdblCtx self = *p_self;
-  
-  cape_dl_del (&(self->hlib));
-  
-  CAPE_DEL(p_self, struct AdblCtx_s);
+  if (*p_self)
+  {
+    AdblCtx self = *p_self;
+    
+    cape_dl_del (&(self->hlib));    
+    
+    CAPE_DEL(p_self, struct AdblCtx_s);
+  }  
 }
 
 //-----------------------------------------------------------------------------
@@ -192,6 +167,8 @@ struct AdblSession_s
   const AdblPvd* pvd;
   
   void* session;
+  
+  AdblPool pool;
 };
 
 //=============================================================================
@@ -211,6 +188,8 @@ AdblSession adbl_session_open (AdblCtx ctx, CapeUdc connection_properties, CapeE
     
     self->pvd = pvd;
     self->session = session;
+    
+    self->pool = adbl_pool_new (&(ctx->pvd));
     
     return self;
   }
@@ -241,11 +220,16 @@ AdblSession adbl_session_open_file (AdblCtx ctx, const char* config_file, CapeEr
 
 void adbl_session_close (AdblSession* p_self)
 {
-  AdblSession self = *p_self;
-  
-  self->pvd->pvd_close (&(self->session));
-  
-  CAPE_DEL(p_self, struct AdblSession_s);
+  if (*p_self)
+  {
+    AdblSession self = *p_self;
+    
+    self->pvd->pvd_close (&(self->session));
+    
+    adbl_pool_del (&(self->pool));
+    
+    CAPE_DEL(p_self, struct AdblSession_s);
+  }  
 }
 
 //-----------------------------------------------------------------------------
@@ -255,13 +239,19 @@ CapeUdc adbl_session_query (AdblSession self, const char* table, CapeUdc* p_para
   return self->pvd->pvd_get (self->session, table, p_params, p_values, err);
 }
 
+//-----------------------------------------------------------------------------
+
+number_t adbl_session_atomic_dec (AdblSession self, const char* table, CapeUdc* p_params, const CapeString atomic_value, CapeErr err)
+{
+  return self->pvd->pvd_atomic_dec (self->session, table, p_params, atomic_value, err);
+}
+
 //=============================================================================
 
 struct AdblTrx_s
 {
-  const AdblPvd* pvd;
-  
-  void* session;
+  AdblPool pool;  
+  CapeListNode pool_node;
   
   int in_trx;
 };
@@ -270,15 +260,33 @@ struct AdblTrx_s
 
 AdblTrx adbl_trx_new  (AdblSession session, CapeErr err)
 {
-  AdblTrx self = CAPE_NEW(struct AdblTrx_s);
-  
-  self->pvd = session->pvd;
-  self->session = session->session;
+  CapeListNode pool_node = adbl_pool_get (session->pool);
 
-  // don't start with a transaction  
-  self->in_trx = FALSE;
+  if (NULL == pool_node)
+  {
+    // clone the current pvd handle
+    void* pvd_handle = session->pvd->pvd_clone (session->session, err);
+    
+    if (NULL == pvd_handle)
+    {
+      // some error happened
+      return NULL;
+    }
+    
+    pool_node = adbl_pool_add (session->pool, pvd_handle);
+  }
   
-  return self;
+  {
+    AdblTrx self = CAPE_NEW (struct AdblTrx_s);
+    
+    self->pool = session->pool;
+    self->pool_node = pool_node;
+    
+    // don't start with a transaction  
+    self->in_trx = FALSE;
+    
+    return self;
+  }  
 }
 
 //-----------------------------------------------------------------------------
@@ -295,8 +303,10 @@ int adbl_trx_commit (AdblTrx* p_self, CapeErr err)
     {
       cape_log_msg (CAPE_LL_TRACE, "ADBL", "trx commit", "COMMIT TRANSACTION");
       
-      res = self->pvd->pvd_commit (self->session, err);
+      res = adbl_pool_trx_commit (self->pool, self->pool_node, err);
     }
+    
+    adbl_pool_rel (self->pool, self->pool_node);
     
     CAPE_DEL(p_self, struct AdblTrx_s);
   }
@@ -318,8 +328,10 @@ int adbl_trx_rollback (AdblTrx* p_self, CapeErr err)
     {
       cape_log_msg (CAPE_LL_TRACE, "ADBL", "trx rollback", "ROLLBACK TRANSACTION");
       
-      res = self->pvd->pvd_rollback (self->session, err);
+      res = adbl_pool_trx_rollback (self->pool, self->pool_node, err);
     }
+    
+    adbl_pool_rel (self->pool, self->pool_node);
     
     CAPE_DEL(p_self, struct AdblTrx_s);    
   }
@@ -342,7 +354,7 @@ int adbl_trx_start (AdblTrx self, CapeErr err)
 
     cape_log_msg (CAPE_LL_TRACE, "ADBL", "trx start", "START TRANSACTION");
     
-    res = self->pvd->pvd_begin (self->session, err);
+    res = adbl_pool_trx_begin (self->pool, self->pool_node, err);
     if (res)
     {
       return res;
@@ -364,7 +376,7 @@ CapeUdc adbl_trx_query (AdblTrx self, const char* table, CapeUdc* p_params, Cape
     return NULL;
   }
   
-  return self->pvd->pvd_get (self->session, table, p_params, p_values, err);
+  return adbl_pool_trx_query (self->pool, self->pool_node, table, p_params, p_values, err);
 }
 
 //-----------------------------------------------------------------------------
@@ -377,7 +389,7 @@ number_t adbl_trx_insert (AdblTrx self, const char* table, CapeUdc* p_values, Ca
     return -1;
   }
   
-  return self->pvd->pvd_ins (self->session, table, p_values, err);
+  return adbl_pool_trx_insert (self->pool, self->pool_node, table, p_values, err);
 }
 
 //-----------------------------------------------------------------------------
@@ -390,7 +402,7 @@ int adbl_trx_update (AdblTrx self, const char* table, CapeUdc* p_params, CapeUdc
     return res;
   }
   
-  return self->pvd->pvd_set (self->session, table, p_params, p_values, err);
+  return adbl_pool_trx_update (self->pool, self->pool_node, table, p_params, p_values, err);
 }
 
 //-----------------------------------------------------------------------------
@@ -403,7 +415,7 @@ int adbl_trx_delete (AdblTrx self, const char* table, CapeUdc* p_params, CapeErr
     return res;
   }
   
-  return self->pvd->pvd_del (self->session, table, p_params, err);
+  return adbl_pool_trx_delete (self->pool, self->pool_node, table, p_params, err);
 }
 
 //-----------------------------------------------------------------------------
@@ -416,7 +428,7 @@ number_t adbl_trx_inorup (AdblTrx self, const char* table, CapeUdc* p_params, Ca
     return -1;
   }
   
-  return self->pvd->pvd_ins_or_set (self->session, table, p_params, p_values, err);
+  return adbl_pool_trx_inorup (self->pool, self->pool_node, table, p_params, p_values, err);
 }
 
 //-----------------------------------------------------------------------------
@@ -440,7 +452,7 @@ AdblCursor adbl_trx_cursor_new (AdblTrx trx, const char* table, CapeUdc* p_param
     return NULL;
   }
   
-  handle = trx->pvd->pvd_cursor_new (trx->session, table, p_params, p_values, err);
+  handle = adbl_pool_trx_cursor_new (trx->pool, trx->pool_node, table, p_params, p_values, err);
 
   if (handle == NULL)
   {
@@ -450,7 +462,7 @@ AdblCursor adbl_trx_cursor_new (AdblTrx trx, const char* table, CapeUdc* p_param
   {
     AdblCursor self = CAPE_NEW(struct AdblCursor_s);
     
-    self->pvd = trx->pvd;
+    self->pvd = adbl_pool_pvd (trx->pool);
     self->handle = handle;
     
     return self;
