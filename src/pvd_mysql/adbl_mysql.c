@@ -413,19 +413,17 @@ number_t __STDCALL adbl_pvd_ins (AdblPvdSession self, const char* table, CapeUdc
   
   pre = adbl_prepare_new (NULL, p_values);
 
+  // mysqlclient is not thread safe, so we need to protect the resource with mutex
+  cape_mutex_lock (self->mutex);
+
   // run the procedure
   {
     int i;
     for (i = 0; i < self->max_retries; i++)
     {
-      // mysqlclient is not thread safe, so we need to protect the resource with mutex
-      cape_mutex_lock (self->mutex);
-
       res = adbl_prepare_init (pre, self, self->mysql, err);
       if (res)
       {
-        cape_mutex_unlock (self->mutex);
-
         if (res == CAPE_ERR_CONTINUE)
         {
           cape_log_fmt (CAPE_LL_TRACE, "ADBL", "mysql insert", "enter new cycle #1 -> [%i]", i);
@@ -439,8 +437,6 @@ number_t __STDCALL adbl_pvd_ins (AdblPvdSession self, const char* table, CapeUdc
       res = adbl_prepare_statement_insert (pre, self, self->schema, table, self->ansi_quotes, err);
       if (res)
       {
-        cape_mutex_unlock (self->mutex);
-
         if (res == CAPE_ERR_CONTINUE)
         {
           cape_log_fmt (CAPE_LL_TRACE, "ADBL", "mysql insert", "enter new cycle #2 -> [%i]", i);
@@ -454,8 +450,6 @@ number_t __STDCALL adbl_pvd_ins (AdblPvdSession self, const char* table, CapeUdc
       res = adbl_prepare_binds_values (pre, err);
       if (res)
       {
-        cape_mutex_unlock (self->mutex);
-
         if (res == CAPE_ERR_CONTINUE)
         {
           cape_log_fmt (CAPE_LL_TRACE, "ADBL", "mysql insert", "enter new cycle #3 -> [%i]", i);
@@ -469,8 +463,6 @@ number_t __STDCALL adbl_pvd_ins (AdblPvdSession self, const char* table, CapeUdc
       res = adbl_prepare_execute (pre, self, err);
       if (res)
       {
-        cape_mutex_unlock (self->mutex);
-
         if (res == CAPE_ERR_CONTINUE)
         {
           cape_log_fmt (CAPE_LL_TRACE, "ADBL", "mysql insert", "enter new cycle #4 -> [%i]", i);
@@ -483,8 +475,6 @@ number_t __STDCALL adbl_pvd_ins (AdblPvdSession self, const char* table, CapeUdc
       // get last inserted id
       last_insert_id = (number_t)mysql_insert_id (self->mysql);
 
-      cape_mutex_unlock (self->mutex);
-
       // done
       break;
     }
@@ -493,6 +483,9 @@ number_t __STDCALL adbl_pvd_ins (AdblPvdSession self, const char* table, CapeUdc
 exit_and_cleanup:
   
   adbl_prepare_del (&pre);
+
+  cape_mutex_unlock (self->mutex);
+
   return last_insert_id;
 }
 
@@ -504,19 +497,17 @@ int __STDCALL adbl_pvd_del (AdblPvdSession self, const char* table, CapeUdc* p_p
   
   AdblPrepare pre = adbl_prepare_new (p_params, NULL);
   
+  // mysqlclient is not thread safe, so we need to protect the resource with mutex
+  cape_mutex_lock (self->mutex);
+
   // run the procedure
   {
     int i;
     for (i = 0; i < self->max_retries; i++)
     {
-      // mysqlclient is not thread safe, so we need to protect the resource with mutex
-      cape_mutex_lock (self->mutex);
-
       res = adbl_prepare_init (pre, self, self->mysql, err);
       if (res)
       {
-        cape_mutex_unlock (self->mutex);
-
         if (res == CAPE_ERR_CONTINUE)
         {
           continue;
@@ -529,8 +520,6 @@ int __STDCALL adbl_pvd_del (AdblPvdSession self, const char* table, CapeUdc* p_p
       res = adbl_prepare_statement_delete (pre, self, self->schema, table, self->ansi_quotes, err);
       if (res)
       {
-        cape_mutex_unlock (self->mutex);
-
         if (res == CAPE_ERR_CONTINUE)
         {
           continue;
@@ -543,8 +532,6 @@ int __STDCALL adbl_pvd_del (AdblPvdSession self, const char* table, CapeUdc* p_p
       res = adbl_prepare_binds_params (pre, err);
       if (res)
       {
-        cape_mutex_unlock (self->mutex);
-
         if (res == CAPE_ERR_CONTINUE)
         {
           continue;
@@ -557,8 +544,6 @@ int __STDCALL adbl_pvd_del (AdblPvdSession self, const char* table, CapeUdc* p_p
       res = adbl_prepare_execute (pre, self, err);
       if (res)
       {
-        cape_mutex_unlock (self->mutex);
-
         if (res == CAPE_ERR_CONTINUE)
         {
           continue;
@@ -566,8 +551,6 @@ int __STDCALL adbl_pvd_del (AdblPvdSession self, const char* table, CapeUdc* p_p
         
         goto exit_and_cleanup;
       }
-
-      cape_mutex_unlock (self->mutex);
 
       // done
       break;
@@ -579,6 +562,9 @@ int __STDCALL adbl_pvd_del (AdblPvdSession self, const char* table, CapeUdc* p_p
 exit_and_cleanup:
   
   adbl_prepare_del (&pre);
+
+  cape_mutex_unlock (self->mutex);
+
   return res;
 }
 
@@ -605,6 +591,9 @@ int __STDCALL adbl_pvd_set (AdblPvdSession self, const char* table, CapeUdc* p_p
     goto exit_and_cleanup;
   }
   
+  // mysqlclient is not thread safe, so we need to protect the resource with mutex
+  cape_mutex_lock (self->mutex);
+
   pre = adbl_prepare_new (p_params, p_values);
 
   // run the procedure
@@ -612,14 +601,9 @@ int __STDCALL adbl_pvd_set (AdblPvdSession self, const char* table, CapeUdc* p_p
     int i;
     for (i = 0; i < self->max_retries; i++)
     {
-      // mysqlclient is not thread safe, so we need to protect the resource with mutex
-      cape_mutex_lock (self->mutex);
-
       res = adbl_prepare_init (pre, self, self->mysql, err);
       if (res)
       {
-        cape_mutex_unlock (self->mutex);
-
         if (res == CAPE_ERR_CONTINUE)
         {
           continue;
@@ -632,8 +616,6 @@ int __STDCALL adbl_pvd_set (AdblPvdSession self, const char* table, CapeUdc* p_p
       res = adbl_prepare_statement_update (pre, self, self->schema, table, self->ansi_quotes, err);
       if (res)
       {
-        cape_mutex_unlock (self->mutex);
-
         if (res == CAPE_ERR_CONTINUE)
         {
           continue;
@@ -647,8 +629,6 @@ int __STDCALL adbl_pvd_set (AdblPvdSession self, const char* table, CapeUdc* p_p
       res = adbl_prepare_binds_all (pre, err);
       if (res)
       {
-        cape_mutex_unlock (self->mutex);
-
         if (res == CAPE_ERR_CONTINUE)
         {
           continue;
@@ -661,8 +641,6 @@ int __STDCALL adbl_pvd_set (AdblPvdSession self, const char* table, CapeUdc* p_p
       res = adbl_prepare_execute (pre, self, err);
       if (res)
       {
-        cape_mutex_unlock (self->mutex);
-
         if (res == CAPE_ERR_CONTINUE)
         {
           continue;
@@ -670,8 +648,6 @@ int __STDCALL adbl_pvd_set (AdblPvdSession self, const char* table, CapeUdc* p_p
         
         goto exit_and_cleanup;
       }
-
-      cape_mutex_unlock (self->mutex);
 
       // done
       break;
@@ -683,6 +659,9 @@ int __STDCALL adbl_pvd_set (AdblPvdSession self, const char* table, CapeUdc* p_p
 exit_and_cleanup:
   
   adbl_prepare_del (&pre);
+
+  cape_mutex_unlock (self->mutex);
+
   return res;
 }
 
@@ -710,6 +689,9 @@ number_t __STDCALL adbl_pvd_ins_or_set (AdblPvdSession self, const char* table, 
     goto exit_and_cleanup;
   }
   
+  // mysqlclient is not thread safe, so we need to protect the resource with mutex
+  cape_mutex_lock (self->mutex);
+
   pre = adbl_prepare_new (p_params, p_values);
 
   // run the procedure
@@ -717,14 +699,9 @@ number_t __STDCALL adbl_pvd_ins_or_set (AdblPvdSession self, const char* table, 
     int i;
     for (i = 0; i < self->max_retries; i++)
     {
-      // mysqlclient is not thread safe, so we need to protect the resource with mutex
-      cape_mutex_lock (self->mutex);
-
       res = adbl_prepare_init (pre, self, self->mysql, err);
       if (res)
       {
-        cape_mutex_unlock (self->mutex);
-
         if (res == CAPE_ERR_CONTINUE)
         {
           continue;
@@ -737,8 +714,6 @@ number_t __STDCALL adbl_pvd_ins_or_set (AdblPvdSession self, const char* table, 
       res = adbl_prepare_statement_setins (pre, self, self->schema, table, self->ansi_quotes, err);
       if (res)
       {
-        cape_mutex_unlock (self->mutex);
-
         if (res == CAPE_ERR_CONTINUE)
         {
           continue;
@@ -752,8 +727,6 @@ number_t __STDCALL adbl_pvd_ins_or_set (AdblPvdSession self, const char* table, 
       res = adbl_prepare_binds_all (pre, err);
       if (res)
       {
-        cape_mutex_unlock (self->mutex);
-
         if (res == CAPE_ERR_CONTINUE)
         {
           continue;
@@ -766,8 +739,6 @@ number_t __STDCALL adbl_pvd_ins_or_set (AdblPvdSession self, const char* table, 
       res = adbl_prepare_execute (pre, self, err);
       if (res)
       {
-        cape_mutex_unlock (self->mutex);
-
         if (res == CAPE_ERR_CONTINUE)
         {
           continue;
@@ -776,19 +747,20 @@ number_t __STDCALL adbl_pvd_ins_or_set (AdblPvdSession self, const char* table, 
         goto exit_and_cleanup;
       }
 
-      // get last inserted id
-      last_insert_id = (number_t)mysql_insert_id (self->mysql);
-
-      cape_mutex_unlock (self->mutex);
-
       // done
       break;
     }
   }
-  
+
+  // get last inserted id
+  last_insert_id = (number_t)mysql_insert_id (self->mysql);
+
 exit_and_cleanup:
   
   adbl_prepare_del (&pre);
+
+  cape_mutex_unlock (self->mutex);
+
   return last_insert_id;
 }
 
@@ -864,18 +836,16 @@ AdblPvdCursor __STDCALL adbl_pvd_cursor_new (AdblPvdSession self, const char* ta
   int res;
   AdblPrepare pre = adbl_prepare_new (p_params, p_values);
   
+  cape_mutex_lock (self->mutex);
+  
   // run the procedure
   {
     int i;
     for (i = 0; i < self->max_retries; i++)
     {
-      cape_mutex_lock (self->mutex);
-      
       res = adbl_prepare_init (pre, self, self->mysql, err);
       if (res)
       {
-        cape_mutex_unlock (self->mutex);
-        
         if (res == CAPE_ERR_CONTINUE)
         {
           cape_log_fmt (CAPE_LL_TRACE, "ADBL", "mysql cursor", "enter new cycle #1 -> [%i]", i);    
@@ -889,8 +859,6 @@ AdblPvdCursor __STDCALL adbl_pvd_cursor_new (AdblPvdSession self, const char* ta
       res = adbl_prepare_statement_select (pre, self, self->schema, table, self->ansi_quotes, err);
       if (res)
       {
-        cape_mutex_unlock (self->mutex);
-
         if (res == CAPE_ERR_CONTINUE)
         {
           cape_log_fmt (CAPE_LL_TRACE, "ADBL", "mysql cursor", "enter new cycle #2 -> [%i]", i);    
@@ -903,8 +871,6 @@ AdblPvdCursor __STDCALL adbl_pvd_cursor_new (AdblPvdSession self, const char* ta
       res = adbl_prepare_binds_params (pre, err);
       if (res)
       {
-        cape_mutex_unlock (self->mutex);
-
         if (res == CAPE_ERR_CONTINUE)
         {
           cape_log_fmt (CAPE_LL_TRACE, "ADBL", "mysql cursor", "enter new cycle #3 -> [%i]", i);    
@@ -917,8 +883,6 @@ AdblPvdCursor __STDCALL adbl_pvd_cursor_new (AdblPvdSession self, const char* ta
       res = adbl_prepare_binds_result (pre, err);
       if (res)
       {
-        cape_mutex_unlock (self->mutex);
-
         if (res == CAPE_ERR_CONTINUE)
         {
           cape_log_fmt (CAPE_LL_TRACE, "ADBL", "mysql cursor", "enter new cycle #4 -> [%i]", i);
@@ -931,8 +895,6 @@ AdblPvdCursor __STDCALL adbl_pvd_cursor_new (AdblPvdSession self, const char* ta
       res = adbl_prepare_execute (pre, self, err);
       if (res)
       {
-        cape_mutex_unlock (self->mutex);
-
         if (res == CAPE_ERR_CONTINUE)
         {
           cape_log_fmt (CAPE_LL_TRACE, "ADBL", "mysql cursor", "enter new cycle #5 -> [%i]", i);
@@ -942,18 +904,24 @@ AdblPvdCursor __STDCALL adbl_pvd_cursor_new (AdblPvdSession self, const char* ta
         goto exit_and_cleanup;    
       }
 
-      cape_mutex_unlock (self->mutex);
-
       // done
       break;
     }
   }
   
-  return adbl_prepare_to_cursor (&pre);
+  {
+    AdblPvdCursor ret = adbl_prepare_to_cursor (&pre);
+    
+    cape_mutex_unlock (self->mutex);
+
+    return ret;
+  }
   
 // --------------
 exit_and_cleanup:
   
+  cape_mutex_unlock (self->mutex);
+
   adbl_prepare_del (&pre);
   return NULL;
 }
