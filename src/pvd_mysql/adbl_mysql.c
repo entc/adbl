@@ -78,7 +78,12 @@ void __attribute__ ((constructor)) library_init (void)
 {
   unsigned long vv = mysql_get_client_version ();
   
-  cape_log_fmt (CAPE_LL_DEBUG, "ADBL", "load library", "MYSQL INIT: %ul", vv);
+  number_t major = vv / 10000;
+  number_t release = (vv - (major * 10000)) / 100;
+  number_t sub = (vv - (major * 10000) - (release * 100));
+  
+  
+  cape_log_fmt (CAPE_LL_DEBUG, "ADBL", "load library", "MYSQL INIT: Version (%i.%02i.%02i)", major, release, sub);
   
   // TODO: this might hang in various mariadb client versions
   //    -> mariadb version 5.5.33 - 1.161 - x86_64
