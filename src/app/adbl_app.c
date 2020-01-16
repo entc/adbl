@@ -1,6 +1,7 @@
 #include "adbl.h"
 
 #include <stc/cape_udc.h>
+#include <sys/cape_queue.h>
 
 //-----------------------------------------------------------------------------
 
@@ -8,12 +9,96 @@
 
 //-----------------------------------------------------------------------------
 
+static void __STDCALL worker_part (void* ptr, number_t pos)
+{
+  AdblTrx trx = NULL;
+  AdblSession session = ptr;
+  number_t last_inserted_row = 0;
+  int i;
+  
+  CapeErr err = cape_err_new ();
+  
+  trx = adbl_trx_new (session, err);
+  if (trx == NULL)
+  {
+    goto exit;
+  }
+  
+  // fetch
+  {
+    CapeUdc results;
+    
+    //CapeUdc params = cape_udc_new (CAPE_UDC_NODE, NULL);
+    
+    
+    //cape_udc_add_n       (params, "id", 1);
+    
+    CapeUdc columns = cape_udc_new (CAPE_UDC_NODE, NULL);
+    
+    
+    // define the columns we want to fetch
+    cape_udc_add_n       (columns, "fk01", 0);
+    cape_udc_add_s_cp    (columns, "col01", NULL);
+    cape_udc_add_s_cp    (columns, "col02", NULL);
+    
+    results = adbl_trx_query (trx, "test_table01", NULL, &columns, err);
+    
+    if (results)
+    {
+      printf ("amount of result: %li\n", cape_udc_size (results));
+      
+      cape_udc_del (&results);
+    }
+  }
+  
+  // insert
+  for (i = 0; i < 2; i++)
+  {
+    CapeUdc values = cape_udc_new (CAPE_UDC_NODE, NULL);
+    
+    // define the columns we want to insert
+    cape_udc_add_n       (values, "id", ADBL_AUTO_INCREMENT);   // this column is an auto increment column
+    cape_udc_add_n       (values, "fk01", 42);
+    
+    CapeString h = cape_str_uuid ();
+    cape_udc_add_s_mv    (values, "col01", &h);
+    
+    cape_udc_add_s_cp    (values, "col02", "xxxx");
+    
+    
+    CapeDatetime dt;    
+    cape_datetime_utc (&dt);
+    
+    cape_udc_add_d       (values, "d01",  &dt);
+    
+    last_inserted_row = adbl_trx_insert (trx, "test_table01", &values, err);
+    
+    if (last_inserted_row <= 0)
+    {
+      printf ("ERROR: %s\n", cape_err_text(err));
+      
+      
+    }
+  }
+  
+  adbl_trx_commit (&trx, err);
+  
+exit:
+
+  cape_err_del (&err);
+}
+
+//-----------------------------------------------------------------------------
+
 int main (int argc, char *argv[])
 {
-  int i;
+  int i, res;
   number_t last_inserted_row = 0;
 
   CapeErr err = cape_err_new ();
+  
+  CapeQueue queue = cape_queue_new ();
+  CapeSync sync = cape_sync_new ();
   
   AdblCtx ctx = NULL;
   AdblSession session = NULL;
@@ -23,12 +108,17 @@ int main (int argc, char *argv[])
   
   cape_datetime_utc (&dt_start);
   
+  res = cape_queue_start (queue, 10, err);
+  if (res)
+  {
+    goto exit;
+  }
+  
   ctx = adbl_ctx_new ("pvd_mysql", "adbl2_mysql", err);
   if (ctx == NULL)
   {
     goto exit;
   }
-  
   
   {
     CapeUdc properties = cape_udc_new (CAPE_UDC_NODE, NULL);
@@ -52,142 +142,12 @@ int main (int argc, char *argv[])
   }
   
   
+  for (int i = 0; i < 100; i++)
   {
-    trx = adbl_trx_new (session, err);
-    if (trx == NULL)
-    {
-      goto exit;
-    }
-    
-    // fetch
-    {
-      CapeUdc results;
-      
-      //CapeUdc params = cape_udc_new (CAPE_UDC_NODE, NULL);
-      
-      
-      //cape_udc_add_n       (params, "id", 1);
-      
-      CapeUdc columns = cape_udc_new (CAPE_UDC_NODE, NULL);
-      
-      
-      // define the columns we want to fetch
-      cape_udc_add_n       (columns, "fk01", 0);
-      cape_udc_add_s_cp    (columns, "col01", NULL);
-      cape_udc_add_s_cp    (columns, "col02", NULL);
-      
-      results = adbl_trx_query (trx, "test_table01", NULL, &columns, err);
-      
-      if (results)
-      {
-        printf ("amount of result: %li\n", cape_udc_size (results));
-        
-        cape_udc_del (&results);
-      }
-    }
-    
-    // insert
-    for (i = 0; i < 2; i++)
-    {
-      CapeUdc values = cape_udc_new (CAPE_UDC_NODE, NULL);
-      
-      // define the columns we want to insert
-      cape_udc_add_n       (values, "id", ADBL_AUTO_INCREMENT);   // this column is an auto increment column
-      cape_udc_add_n       (values, "fk01", 42);
-      
-      CapeString h = cape_str_uuid ();
-      cape_udc_add_s_mv    (values, "col01", &h);
-      
-      cape_udc_add_s_cp    (values, "col02", "xxxx");
-      
-      
-      CapeDatetime dt;    
-      cape_datetime_utc (&dt);
-      
-      cape_udc_add_d       (values, "d01",  &dt);
-      
-      last_inserted_row = adbl_trx_insert (trx, "test_table01", &values, err);
-      
-      if (last_inserted_row <= 0)
-      {
-        printf ("ERROR: %s\n", cape_err_text(err));
-        
-        
-      }
-    }
-    
-    adbl_trx_commit (&trx, err);
+    cape_queue_add (queue, sync, worker_part, NULL, session, 0);
   }
   
-  
-  {
-    trx = adbl_trx_new (session, err);
-    if (trx == NULL)
-    {
-      goto exit;
-    }
-    
-    // fetch
-    {
-      CapeUdc results;
-      
-      //CapeUdc params = cape_udc_new (CAPE_UDC_NODE, NULL);
-      
-      
-      //cape_udc_add_n       (params, "id", 1);
-      
-      CapeUdc columns = cape_udc_new (CAPE_UDC_NODE, NULL);
-      
-      
-      // define the columns we want to fetch
-      cape_udc_add_n       (columns, "fk01", 0);
-      cape_udc_add_s_cp    (columns, "col01", NULL);
-      cape_udc_add_s_cp    (columns, "col02", NULL);
-      
-      results = adbl_trx_query (trx, "test_table01", NULL, &columns, err);
-      
-      if (results)
-      {
-        printf ("amount of result: %li\n", cape_udc_size (results));
-        
-        cape_udc_del (&results);
-      }
-    }
-    
-    // insert
-    for (i = 0; i < 2; i++)
-    {
-      CapeUdc values = cape_udc_new (CAPE_UDC_NODE, NULL);
-      
-      // define the columns we want to insert
-      cape_udc_add_n       (values, "id", ADBL_AUTO_INCREMENT);   // this column is an auto increment column
-      cape_udc_add_n       (values, "fk01", 42);
-      
-      CapeString h = cape_str_uuid ();
-      cape_udc_add_s_mv    (values, "col01", &h);
-      
-      cape_udc_add_s_cp    (values, "col02", "xxxx");
-      
-      
-      CapeDatetime dt;    
-      cape_datetime_utc (&dt);
-      
-      cape_udc_add_d       (values, "d01",  &dt);
-      
-      last_inserted_row = adbl_trx_insert (trx, "test_table01", &values, err);
-      
-      if (last_inserted_row <= 0)
-      {
-        printf ("ERROR: %s\n", cape_err_text(err));
-        
-        
-      }
-    }
-    
-    adbl_trx_commit (&trx, err);
-  }
-  
-  
+  cape_sync_wait (sync);
   
   // fetch again with params
   {
@@ -274,6 +234,9 @@ exit:
   }
   
   cape_err_del (&err);
+  
+  cape_queue_del (&queue);
+  cape_sync_del (&sync);
   
   return 0;
 }

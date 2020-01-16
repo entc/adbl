@@ -114,8 +114,6 @@ void adbl_mysql_done ()
   
   if (init_status == 0)
   {
-    mysql_thread_end ();
-
     mysql_library_end ();    
   }
 }
@@ -332,6 +330,9 @@ AdblPvdSession __STDCALL adbl_pvd_clone (AdblPvdSession rhs, CapeErr err)
     adbl_pvd_close (&self);
     return NULL;
   }
+  
+  // to be on the safe side
+  mysql_thread_end ();
   
   return self;
 }
