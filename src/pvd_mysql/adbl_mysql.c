@@ -76,9 +76,18 @@ extern "C" BOOL WINAPI DllMain (HINSTANCE const instance, DWORD const reason, LP
 
 void __attribute__ ((constructor)) library_init (void)
 {
-  cape_log_msg (CAPE_LL_DEBUG, "ADBL", "load library", "MYSQL INIT");
+  unsigned long vv = mysql_get_client_version ();
   
-  mysql_library_init (0, NULL, NULL);  
+  number_t major = vv / 10000;
+  number_t release = (vv - (major * 10000)) / 100;
+  number_t sub = (vv - (major * 10000) - (release * 100));
+  
+  
+  cape_log_fmt (CAPE_LL_DEBUG, "ADBL", "load library", "MYSQL INIT: Version (%i.%02i.%02i)", major, release, sub);
+  
+  // TODO: this might hang in various mariadb client versions
+  //    -> mariadb version 5.5.33 - 1.161 - x86_64
+  mysql_library_init (0, NULL, NULL);
 }
 
 //------------------------------------------------------------------------------------------------------
