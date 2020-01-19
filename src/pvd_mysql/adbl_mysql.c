@@ -686,14 +686,14 @@ number_t __STDCALL adbl_pvd_ins_or_set (AdblPvdSession self, const char* table, 
   AdblPrepare pre = NULL;
   
   // some prechecks
-  if (NULL == p_values)
+  if (NULL == p_params)
   {
-    res = cape_err_set (err, CAPE_ERR_MISSING_PARAM, "values was not provided");
+    res = cape_err_set (err, CAPE_ERR_MISSING_PARAM, "params was not provided");
     goto exit_and_cleanup;
   }
   
   // some prechecks
-  if (0 == cape_udc_size (*p_values))
+  if (0 == cape_udc_size (*p_params))
   {
     res = CAPE_ERR_NONE;
     goto exit_and_cleanup;

@@ -123,7 +123,7 @@ int main (int argc, char *argv[])
   {
     CapeUdc properties = cape_udc_new (CAPE_UDC_NODE, NULL);
     
-    cape_udc_add_s_cp (properties, "host", "127.0.0.1");
+    cape_udc_add_s_cp (properties, "host", "localhost");
     cape_udc_add_s_cp (properties, "schema", "test");
     
     cape_udc_add_s_cp (properties, "user", "test");
@@ -142,7 +142,7 @@ int main (int argc, char *argv[])
   }
   
   
-  for (int i = 0; i < 1; i++)
+  for (int i = 0; i < 100; i++)
   {
     cape_queue_add (queue, sync, worker_part, NULL, session, 0);
   }

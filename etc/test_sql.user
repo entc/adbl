@@ -1,0 +1,3 @@
+CREATE USER 'test'@'localhost' IDENTIFIED BY 'test';
+GRANT ALL ON test.* TO 'test'@'localhost';
+
