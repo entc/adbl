@@ -142,7 +142,7 @@ int main (int argc, char *argv[])
   }
   
   
-  for (int i = 0; i < 100; i++)
+  for (i = 0; i < 100; i++)
   {
     cape_queue_add (queue, sync, worker_part, NULL, session, 0);
   }
