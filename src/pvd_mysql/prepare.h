@@ -68,6 +68,8 @@ __CAPE_LIBEX   int             adbl_prepare_statement_setins   (AdblPrepare, Adb
 
 __CAPE_LIBEX   int             adbl_prepare_statement_atodec   (AdblPrepare, AdblPvdSession session, const char* schema, const char* table, int ansi, const CapeString atomic_value, CapeErr err);
 
+__CAPE_LIBEX   int             adbl_prepare_statement_atoinc   (AdblPrepare, AdblPvdSession session, const char* schema, const char* table, int ansi, const CapeString atomic_value, CapeErr err);
+
 //-----------------------------------------------------------------------------
 
 #endif

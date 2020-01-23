@@ -588,6 +588,20 @@ int __STDCALL adbl_pvd_set (AdblPvdSession self, const char* table, CapeUdc* p_p
   AdblPrepare pre = NULL;
   
   // some prechecks
+  if (NULL == p_params)
+  {
+    res = cape_err_set (err, CAPE_ERR_MISSING_PARAM, "params was not provided");
+    goto exit_and_cleanup;
+  }
+  
+  // some prechecks
+  if (0 == cape_udc_size (*p_params))
+  {
+    res = cape_err_set (err, CAPE_ERR_MISSING_PARAM, "params was empty");
+    goto exit_and_cleanup;
+  }
+
+  // some prechecks
   if (NULL == p_values)
   {
     res = cape_err_set (err, CAPE_ERR_MISSING_PARAM, "values was not provided");
@@ -1050,6 +1064,90 @@ number_t __STDCALL adbl_pvd_atomic_dec (AdblPvdSession self, const char* table, 
       }
       
       res = adbl_prepare_statement_atodec (pre, self, self->schema, table, self->ansi_quotes, atomic_value, err);
+      if (res)
+      {
+        if (res == CAPE_ERR_CONTINUE)
+        {
+          continue;
+        }
+        
+        cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql atomic dec", cape_err_text(err));
+        goto exit_and_cleanup;
+      }
+      
+      res = adbl_prepare_binds_params (pre, err);
+      if (res)
+      {
+        if (res == CAPE_ERR_CONTINUE)
+        {
+          continue;
+        }
+        
+        cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql atomic dec", cape_err_text(err));
+        goto exit_and_cleanup;
+      }
+      
+      res = adbl_prepare_execute (pre, self, err);
+      if (res)
+      {
+        if (res == CAPE_ERR_CONTINUE)
+        {
+          continue;
+        }
+        
+        goto exit_and_cleanup;
+      }
+
+      // done
+      break;
+    }
+  }
+  
+  // get last inserted id
+  ret = (number_t)mysql_insert_id (self->mysql);
+
+  // to be on the safe side, clear the error aswell
+  cape_err_clr (err);
+  
+exit_and_cleanup:
+  
+  adbl_prepare_del (&pre);
+
+  cape_mutex_unlock (self->mutex);
+
+  return ret;
+}
+
+//-----------------------------------------------------------------------------
+
+number_t __STDCALL adbl_pvd_atomic_inc (AdblPvdSession self, const char* table, CapeUdc* p_params, const CapeString atomic_value, CapeErr err)
+{
+  number_t ret = -1;
+  
+  int res;
+  AdblPrepare pre = adbl_prepare_new (p_params, NULL);
+
+  // mysqlclient is not thread safe, so we need to protect the resource with mutex
+  cape_mutex_lock (self->mutex);
+
+  // run the procedure
+  {
+    int i;
+    for (i = 0; i < self->max_retries; i++)
+    {
+      res = adbl_prepare_init (pre, self, self->mysql, err);
+      if (res)
+      {
+        if (res == CAPE_ERR_CONTINUE)
+        {
+          continue;
+        }
+        
+        cape_log_msg (CAPE_LL_WARN, "ADBL", "mysql atomic dec", cape_err_text(err));
+        goto exit_and_cleanup;
+      }
+      
+      res = adbl_prepare_statement_atoinc (pre, self, self->schema, table, self->ansi_quotes, atomic_value, err);
       if (res)
       {
         if (res == CAPE_ERR_CONTINUE)

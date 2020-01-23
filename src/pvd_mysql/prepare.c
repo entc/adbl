@@ -885,4 +885,33 @@ int adbl_prepare_statement_atodec (AdblPrepare self, AdblPvdSession session, con
 
 //-----------------------------------------------------------------------------
 
+int adbl_prepare_statement_atoinc (AdblPrepare self, AdblPvdSession session, const char* schema, const char* table, int ansi, const CapeString atomic_value, CapeErr err)
+{
+  int res;
+  
+  CapeStream stream = cape_stream_new ();
+
+  cape_stream_append_str (stream, "UPDATE ");
+  
+  adbl_pvd_append_table (stream, ansi, schema, table);
+  
+  cape_stream_append_str (stream, " SET ");
+
+  adbl_prepare_append_constraints__param (stream, ansi, atomic_value, table);
+
+  cape_stream_append_str (stream, " = LAST_INSERT_ID(");
+  adbl_prepare_append_constraints__param (stream, ansi, atomic_value, table);
+  cape_stream_append_str (stream, " + 1)");
+  
+  self->params_used = adbl_prepare_append_where_clause (stream, ansi, self->params, table);
+  
+  res = adbl_prepare_prepare (self, session, stream, err);
+  
+  cape_stream_del (&stream);
+    
+  return res;
+}
+
+//-----------------------------------------------------------------------------
+
 
