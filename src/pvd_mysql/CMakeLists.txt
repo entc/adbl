@@ -7,6 +7,9 @@ SET(CMAKE_BUILD_TYPE Debug)
 
 find_package(AdblMysql QUIET)
 
+# set for later
+SET (ENV{ADBL_MYSQL_BINDIR} ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR})
+
 IF(MYSQL_FOUND)
 
 if (MSVC)
